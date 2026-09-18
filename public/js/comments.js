@@ -22,10 +22,12 @@
 
     const meta = document.createElement('div');
     meta.className = 'comment-meta';
+    meta.dir = 'auto'; // names/content may be Hebrew or English — let the browser pick direction
     meta.textContent = `${comment.authorName} · ${formatDate(comment.createdAt)}`;
 
     const body = document.createElement('p');
     body.className = 'comment-text';
+    body.dir = 'auto';
     body.textContent = comment.text; // textContent, never innerHTML — avoids XSS
 
     li.appendChild(meta);

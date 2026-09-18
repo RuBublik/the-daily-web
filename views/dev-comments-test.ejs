@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dev: Comments test</title>
+  </head>
+  <body>
+    <h1>Comments dev test (article id: <%= articleId %>)</h1>
+    <p>Temporary page for developing the comments feature in isolation. Delete this file, the route in <code>routes/devTest.js</code>, and its mount in <code>app.js</code> once the real article page exists.</p>
+
+    <%- include('partials/comments', { articleId: articleId }) %>
+  </body>
+</html>

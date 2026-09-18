@@ -1,0 +1,30 @@
+<section class="comments" data-article-id="<%= articleId %>">
+  <h2>Comments</h2>
+
+  <ul class="comments-list" id="comments-list">
+    <!-- filled in by public/js/comments.js -->
+  </ul>
+
+  <p class="comments-error" id="comments-error" hidden></p>
+
+  <form class="comment-form" id="comment-form">
+    <input
+      type="text"
+      name="authorName"
+      id="comment-author"
+      placeholder="Your name"
+      maxlength="60"
+      required
+    />
+    <textarea
+      name="text"
+      id="comment-text"
+      placeholder="Write a comment..."
+      maxlength="1000"
+      required
+    ></textarea>
+    <button type="submit">Post comment</button>
+  </form>
+</section>
+
+<script src="/js/comments.js"></script>

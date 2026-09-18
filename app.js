@@ -1,9 +1,18 @@
+require('dotenv').config();
+
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const logger = require('morgan');
+const connectDB = require('./config/db');
 
 const indexRouter = require('./routes/index');
+const commentsRouter = require('./routes/comments');
+const devTestRouter = require('./routes/devTest');
+
+connectDB().catch((err) => {
+  console.error('Failed to connect to MongoDB:', err.message);
+});
 
 const app = express();
 
@@ -17,6 +26,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
+app.use('/api/articles/:articleId/comments', commentsRouter);
+app.use('/dev', devTestRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

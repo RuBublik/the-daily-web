@@ -8,7 +8,7 @@ const articles = [
       summary: 'A deep dive into how AI-driven tools are reshaping programming practices, code generation, and developer productivity in 2026.',
       category: 'Technology',
       author: 'John Doe',
-      date: 'Sep 21, 2026',
+      publishedAt: new Date('2026-09-21T10:00:00Z'),
       image: 'https://picsum.photos/600/400?1',
       views: 1250
     },
@@ -18,7 +18,7 @@ const articles = [
       summary: 'Researchers reveal a novel solar storage methodology yielding up to 40% higher efficiency than existing commercial batteries.',
       category: 'Science',
       author: 'Sarah Connor',
-      date: 'Sep 20, 2026',
+      publishedAt: new Date('2026-09-20T14:30:00Z'),
       image: 'https://picsum.photos/600/400?2',
       views: 890
     },
@@ -28,7 +28,7 @@ const articles = [
       summary: 'Key takeaways, product announcements, and future roadmaps presented by industry leaders at this year’s global summit.',
       category: 'Events',
       author: 'Alex Smith',
-      date: 'Sep 19, 2026',
+      publishedAt: new Date('2026-09-19T09:15:00Z'),
       image: 'https://picsum.photos/600/400?3',
       views: 2100
     }
@@ -36,7 +36,7 @@ const articles = [
 
 function showHome(req, res) {
   res.render('index', {
-    title: 'The Daily Web - דף הבית',
+    title: 'The Daily Web',
     articles: articles
   });
 }

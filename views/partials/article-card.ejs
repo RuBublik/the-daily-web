@@ -1,6 +1,6 @@
 <article class="article-card">
   <div class="card-image-wrapper">
-    <img src="<%= article.image %>" alt="<%= article.title %>">
+    <img src="<%= article.image %>" alt="Article thumbnail" title="<%= article.title %>"">
     <span class="category-badge"><%= article.category %></span>
   </div>
   <div class="card-content">
@@ -10,8 +10,8 @@
     <p class="card-summary"><%= article.summary %></p>
     <div class="card-meta">
       <span>By <%= article.author %></span>
-      <span><%= article.date %></span>
-      <span>👁️ <%= article.views %></span>
+      <span><%= article.publishedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+      <span><%= article.views %></span>
     </div>
   </div>
 </article>

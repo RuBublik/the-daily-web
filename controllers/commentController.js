@@ -4,6 +4,10 @@ const Comment = require('../models/Comment');
 const RATE_LIMIT_COUNT = 3;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
+function wouldExceedRateLimit(recentCount) {
+  return recentCount >= RATE_LIMIT_COUNT;
+}
+
 // GET /api/articles/:articleId/comments
 async function listComments(req, res) {
   const { articleId } = req.params;
@@ -48,7 +52,7 @@ async function addComment(req, res) {
       createdAt: { $gte: windowStart },
     });
 
-    if (recentCount >= RATE_LIMIT_COUNT) {
+    if (wouldExceedRateLimit(recentCount)) {
       return res.status(429).json({
         error: `You can only post ${RATE_LIMIT_COUNT} comments per minute. Please wait a bit and try again.`,
       });
@@ -68,4 +72,4 @@ async function addComment(req, res) {
   }
 }
 
-module.exports = { listComments, addComment };
+module.exports = { listComments, addComment, wouldExceedRateLimit, RATE_LIMIT_COUNT };

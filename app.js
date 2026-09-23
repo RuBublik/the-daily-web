@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const createError = require('http-errors');
 const express = require('express');
@@ -11,7 +11,8 @@ const commentsRouter = require('./routes/comments');
 const devTestRouter = require('./routes/devTest');
 
 connectDB().catch((err) => {
-  console.error('Failed to connect to MongoDB:', err.message);
+  console.error('Could not connect to MongoDB:', err.message);
+  process.exit(1);
 });
 
 const app = express();

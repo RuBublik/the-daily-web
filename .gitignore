@@ -7,3 +7,9 @@ npm-debug.log*
 .cursor/
 .claude/
 __pycache__/
+
+# Local MongoDB
+mongodb-macos-*/
+mongodb-linux-*/
+mongodb-*.tgz
+.mongo-data/

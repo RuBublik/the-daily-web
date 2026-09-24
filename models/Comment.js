@@ -28,4 +28,9 @@ const commentSchema = new mongoose.Schema({
   },
 });
 
+// speeds up the rate-limit count in commentController.addComment
+commentSchema.index({ guestId: 1, createdAt: 1 });
+// speeds up listComments, which lists by article newest-first
+commentSchema.index({ article: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Comment', commentSchema);

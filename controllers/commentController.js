@@ -4,6 +4,12 @@ const Comment = require('../models/Comment');
 const RATE_LIMIT_COUNT = 3;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
+// mirrors the maxlength limits on models/Comment.js, checked here too so a
+// direct API call that skips the form's maxlength gets a clean 400, not a
+// Mongoose ValidationError reported as a 500
+const MAX_AUTHOR_NAME_LENGTH = 60;
+const MAX_TEXT_LENGTH = 1000;
+
 function wouldExceedRateLimit(recentCount) {
   return recentCount >= RATE_LIMIT_COUNT;
 }
@@ -39,8 +45,14 @@ async function addComment(req, res) {
   if (typeof authorName !== 'string' || !authorName.trim()) {
     return res.status(400).json({ error: 'Name is required' });
   }
+  if (authorName.trim().length > MAX_AUTHOR_NAME_LENGTH) {
+    return res.status(400).json({ error: `Name must be ${MAX_AUTHOR_NAME_LENGTH} characters or fewer` });
+  }
   if (typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'Comment text is required' });
+  }
+  if (text.trim().length > MAX_TEXT_LENGTH) {
+    return res.status(400).json({ error: `Comment text must be ${MAX_TEXT_LENGTH} characters or fewer` });
   }
 
   try {

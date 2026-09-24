@@ -37,21 +37,12 @@ test('POST rejects an invalid articleId with 400, no database needed', async () 
   assert.strictEqual(res.statusCode, 400);
 });
 
-test('POST rejects a missing guestId with 400', async () => {
-  const res = mockRes();
-  const req = {
-    params: { articleId: validArticleId() },
-    body: { authorName: 'Dana', text: 'hi there' },
-  };
-  await addComment(req, res);
-  assert.strictEqual(res.statusCode, 400);
-});
-
 test('POST rejects an empty/whitespace-only authorName with 400', async () => {
   const res = mockRes();
   const req = {
+    ip: '127.0.0.1',
     params: { articleId: validArticleId() },
-    body: { guestId: 'g1', authorName: '   ', text: 'hi there' },
+    body: { authorName: '   ', text: 'hi there' },
   };
   await addComment(req, res);
   assert.strictEqual(res.statusCode, 400);
@@ -60,8 +51,9 @@ test('POST rejects an empty/whitespace-only authorName with 400', async () => {
 test('POST rejects an empty/whitespace-only text with 400', async () => {
   const res = mockRes();
   const req = {
+    ip: '127.0.0.1',
     params: { articleId: validArticleId() },
-    body: { guestId: 'g1', authorName: 'Dana', text: '   ' },
+    body: { authorName: 'Dana', text: '   ' },
   };
   await addComment(req, res);
   assert.strictEqual(res.statusCode, 400);

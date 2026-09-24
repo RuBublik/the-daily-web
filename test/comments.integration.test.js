@@ -26,20 +26,21 @@ function mockRes() {
   };
 }
 
-test('a guest is blocked after 3 comments within a minute', { skip }, async (t) => {
+test('a guest is blocked after 3 comments within a minute from the same IP', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
   const articleId = new mongoose.Types.ObjectId().toString();
-  const guestId = `test-guest-${Date.now()}`;
+  // a made-up but unique-per-run "IP" so repeat test runs don't see each other's counts
+  const ip = `203.0.113.${Date.now() % 256}`;
 
   t.after(async () => {
-    await Comment.deleteMany({ guestId });
+    await Comment.deleteMany({ guestId: ip });
     await mongoose.disconnect();
   });
 
   for (let i = 0; i < RATE_LIMIT_COUNT; i += 1) {
     const res = mockRes();
     await addComment(
-      { params: { articleId }, body: { guestId, authorName: 'Dana', text: `comment ${i}` } },
+      { ip, params: { articleId }, body: { authorName: 'Dana', text: `comment ${i}` } },
       res,
     );
     assert.strictEqual(res.statusCode, 201, `comment ${i} should be accepted`);
@@ -47,7 +48,7 @@ test('a guest is blocked after 3 comments within a minute', { skip }, async (t) 
 
   const blockedRes = mockRes();
   await addComment(
-    { params: { articleId }, body: { guestId, authorName: 'Dana', text: 'one too many' } },
+    { ip, params: { articleId }, body: { authorName: 'Dana', text: 'one too many' } },
     blockedRes,
   );
   assert.strictEqual(blockedRes.statusCode, 429);

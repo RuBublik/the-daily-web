@@ -2,15 +2,6 @@
 // entirely via Ajax (no full page reload).
 
 (function () {
-  function getGuestId() {
-    let id = localStorage.getItem('guestId');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('guestId', id);
-    }
-    return id;
-  }
-
   function formatDate(isoString) {
     const d = new Date(isoString);
     return d.toLocaleString();
@@ -68,7 +59,6 @@
           body: JSON.stringify({
             authorName: authorInput.value,
             text: textInput.value,
-            guestId: getGuestId(),
           }),
         });
 

@@ -35,6 +35,14 @@ app.use(function(req, res, next) {
   next(createError(404));
 });
 
+// malformed JSON body on an API request -> JSON error, not the HTML error page
+app.use('/api', function(err, req, res, next) {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Malformed JSON in request body' });
+  }
+  next(err);
+});
+
 // error handler
 app.use(function(err, req, res, next) {
   // set locals, only providing error in development

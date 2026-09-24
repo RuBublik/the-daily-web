@@ -29,6 +29,8 @@ MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/the-daily-web
 
 ### Running MongoDB locally (Dev.)
 
+The app needs a MongoDB connection to run at all (not just for comments) — copy `.env.example` to `.env` and fill in `MONGO_URI` before starting it.
+
 Download the MongoDB Community Server archive for your platform/arch., extract into project folder, then:
 
 ```bash
@@ -45,8 +47,6 @@ npm start
 ```
 
 Then open http://localhost:PORT — the port comes from `PORT` in `.env`.
-
-Comments need a MongoDB connection — copy `.env.example` to `.env` and fill in `MONGO_URI` first.
 
 ## Tests
 
@@ -83,9 +83,8 @@ the-daily-web/
 Every article page includes a comments section (list + add-comment form) that updates via Ajax, without a full page reload.
 
 - `GET /api/articles/:articleId/comments` — list comments for an article, newest first.
-- `POST /api/articles/:articleId/comments` — add a comment: `{ guestId, authorName, text }`.
-- **Guest identity**: each browser gets a random `guestId` stored in `localStorage` on first use (no login required), which identifies "the same device" for rate limiting.
-- **Rate limiting**: a guest can post at most 3 comments per minute (per `guestId`). Going over that returns `429` with an explanatory message — the request is never silently dropped and never crashes the server.
+- `POST /api/articles/:articleId/comments` — add a comment: `{ authorName, text }`. No login required.
+- **Rate limiting**: a guest can post at most 3 comments per minute per IP address (`req.ip`), determined server-side so a client can't dodge it by claiming a different identity. Going over that returns `429` with an explanatory message — the request is never silently dropped and never crashes the server.
 - Comment text is rendered client-side with `textContent` (never `innerHTML`) to prevent XSS.
 
 Until the real article page (home feed / article view) exists, the widget can be previewed on its own at `/dev/comments-test` — a temporary route that will be removed once it's wired into the real page.

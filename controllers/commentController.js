@@ -30,18 +30,16 @@ async function listComments(req, res) {
 // POST /api/articles/:articleId/comments
 async function addComment(req, res) {
   const { articleId } = req.params;
-  const { authorName, text, guestId } = req.body;
+  const { authorName, text } = req.body || {};
+  const guestId = req.ip; // server-determined, so a client can't pick a fresh id to dodge the rate limit
 
   if (!mongoose.isValidObjectId(articleId)) {
     return res.status(400).json({ error: 'Invalid article id' });
   }
-  if (!guestId || typeof guestId !== 'string') {
-    return res.status(400).json({ error: 'Missing guestId' });
-  }
-  if (!authorName || !authorName.trim()) {
+  if (typeof authorName !== 'string' || !authorName.trim()) {
     return res.status(400).json({ error: 'Name is required' });
   }
-  if (!text || !text.trim()) {
+  if (typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'Comment text is required' });
   }
 

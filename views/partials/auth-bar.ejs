@@ -1,0 +1,29 @@
+<div class="top-auth-navbar">
+  <div class="auth-bar-content">
+    <% if (typeof user !== 'undefined' && user) { %>
+      <div class="user-profile-badge">
+        <div class="user-details">
+          <span class="user-name">Hello, <strong><%= user.name %></strong></span>
+          <span class="role-pill <%= user.role %>"><%= user.role %></span>
+        </div>
+      </div>
+
+      <form action="/auth/logout" method="POST" class="logout-action" style="margin: 0;">
+        <button type="submit" class="btn-logout-sleek">
+          <span>Logout</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </form>
+
+    <% } else { %>
+      <div class="guest-info">
+        <span class="guest-text">Hello, <strong>Guest</strong></span>
+      </div>
+
+      <div class="auth-actions">
+        <a href="/auth/login" class="nav-btn btn-ghost">Login</a>
+        <a href="/auth/register" class="nav-btn btn-primary-gradient">Register</a>
+      </div>
+    <% } %>
+  </div>
+</div>

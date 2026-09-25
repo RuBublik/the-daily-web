@@ -1,16 +1,20 @@
 body {
   padding: 50px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+  direction: ltr;
+  text-align: left;
 }
 
 a {
   color: #00B7FF;
 }
+
 .articles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.5rem;
 }
+
 .article-card {
   background: #ffffff;
   border-radius: 10px;
@@ -30,6 +34,7 @@ a {
   position: relative;
   height: 160px;
 }
+
 .card-image-wrapper img {
   width: 100%;
   height: 100%;
@@ -82,4 +87,222 @@ a {
   align-items: center;
   border-top: 1px solid #f1f5f9;
   padding-top: 0.75rem;
+}
+
+/* --- Top Auth Navbar Styles --- */
+.top-auth-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  padding: 10px 32px;
+  direction: ltr; /* תוקן ל-LTR */
+}
+
+.auth-bar-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.role-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.role-pill.admin { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.role-pill.user { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+.guest-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost {
+  color: #475569;
+  background-color: #f1f5f9;
+}
+.btn-ghost:hover { background-color: #e2e8f0; }
+
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.btn-primary-gradient:hover { opacity: 0.95; transform: translateY(-1px); }
+
+.btn-logout-sleek {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-logout-sleek:hover { background: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+
+/* --- Auth Pages & Forms Styles --- */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 75vh;
+  direction: ltr; /* תוקן ל-LTR */
+  padding: 20px;
+}
+
+.auth-card {
+  background: #ffffff;
+  padding: 36px 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid #f1f5f9;
+  text-align: left;
+}
+
+.auth-card h2 {
+  margin-bottom: 24px;
+  color: #0f172a;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+}
+
+.form-group input, .form-group select {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  direction: ltr;
+  text-align: left;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn-submit:hover { background: #1d4ed8; }
+
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.auth-switch a { color: #2563eb; font-weight: 600; text-decoration: none; }
+
+.alert-error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+  border: 1px solid #fecaca;
+  text-align: left;
+}
+
+.back-home-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #6c757d;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.back-home-link:hover {
+  color: #007bff;
+  text-decoration: underline;
 }

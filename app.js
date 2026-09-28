@@ -4,10 +4,11 @@ const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const logger = require('morgan');
-
 const connectDB = require('./config/db');
 
 const indexRouter = require('./routes/index');
+const commentsRouter = require('./routes/comments');
+const devTestRouter = require('./routes/devTest');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -26,10 +27,20 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
+app.use('/api/articles/:articleId/comments', commentsRouter);
+app.use('/dev', devTestRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
+});
+
+// malformed JSON body on an API request -> JSON error, not the HTML error page
+app.use('/api', function(err, req, res, next) {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Malformed JSON in request body' });
+  }
+  next(err);
 });
 
 // error handler

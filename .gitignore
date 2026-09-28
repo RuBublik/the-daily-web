@@ -11,5 +11,10 @@ __pycache__/
 # Local MongoDB
 mongodb-macos-*/
 mongodb-linux-*/
+mongodb-windows-*/
+mongodb-win32-*/
+mongosh-*/
 mongodb-*.tgz
+mongodb-*.zip
+compass-install.exe
 .mongo-data/

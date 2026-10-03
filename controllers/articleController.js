@@ -141,6 +141,32 @@ async function getArticle(req, res) {
   }
 }
 
+// POST /api/articles/:id/view
+// the analytics part of the project (view history over time) will extend this handler
+async function recordView(req, res) {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ error: 'Invalid article id' });
+  }
+
+  try {
+    // $inc is atomic, so many readers at once never lose a count
+    const result = await Article.updateOne(
+      { _id: id, status: 'published' },
+      { $inc: { viewCount: 1 } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    res.status(204).end();
+  } catch (err) {
+    console.error('Failed to record view:', err);
+    res.status(500).json({ error: 'Could not record view' });
+  }
+}
+
 // GET /article/:id, the public article page rendered on the server
 async function showArticle(req, res, next) {
   const { id } = req.params;
@@ -185,6 +211,7 @@ module.exports = {
   findPublishedArticles,
   listArticles,
   getArticle,
+  recordView,
   showArticle,
   PAGE_SIZE,
 };

@@ -1,7 +1,8 @@
+const createError = require('http-errors');
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const categories = require('../config/categories');
-const { getViewedIds } = require('../middleware/viewedArticles');
+const { getViewedIds, markViewed } = require('../middleware/viewedArticles');
 
 const PAGE_SIZE = 20;
 const MAX_QUERY_LENGTH = 100;
@@ -140,10 +141,50 @@ async function getArticle(req, res) {
   }
 }
 
+// GET /article/:id, the public article page rendered on the server
+async function showArticle(req, res, next) {
+  const { id } = req.params;
+
+  // an id that cannot exist is just a page that does not exist
+  if (!mongoose.isValidObjectId(id)) {
+    return next(createError(404));
+  }
+
+  try {
+    // drafts and pending articles must not be reachable by guessing the URL,
+    // and only content (the approved version) is selected, never draftContent
+    const article = await Article.findOne({ _id: id, status: 'published' })
+      .select('title summary image category authorName publishDate content')
+      .lean();
+
+    if (!article) {
+      return next(createError(404));
+    }
+
+    // remembers this article for the viewed / unviewed filter on the home page
+    markViewed(req, res, id);
+
+    // the body is stored as plain text; the view prints each paragraph escaped,
+    // so article text can never inject HTML
+    const paragraphs = article.content.split(/\n+/).filter((p) => p.trim());
+
+    res.render('article', {
+      title: article.title + ' | The Daily Web',
+      description: article.summary,
+      article,
+      paragraphs,
+    });
+  } catch (err) {
+    console.error('Failed to render article page:', err);
+    next(err);
+  }
+}
+
 module.exports = {
   parseFeedQuery,
   findPublishedArticles,
   listArticles,
   getArticle,
+  showArticle,
   PAGE_SIZE,
 };

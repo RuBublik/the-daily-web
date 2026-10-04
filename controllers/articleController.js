@@ -125,7 +125,7 @@ async function getArticle(req, res) {
   }
 
   try {
-    // only the approved version: draftContent and editorNote are never selected
+    // returns only published
     const article = await Article.findOne({ _id: id, status: 'published' })
       .select('title summary image category authorName publishDate viewCount content')
       .lean();

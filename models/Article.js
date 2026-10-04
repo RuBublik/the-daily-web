@@ -60,8 +60,6 @@ const articleSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  // running total of views, lets the feed sort by popularity
-  // without counting view records on every request
   viewCount: {
     type: Number,
     default: 0,
@@ -69,7 +67,7 @@ const articleSchema = new mongoose.Schema({
   },
 });
 
-// speeds up the home feed sorted by publish date
+// indexes creation
 articleSchema.index({ status: 1, publishDate: -1 });
 articleSchema.index({ status: 1, viewCount: -1 });
 

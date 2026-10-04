@@ -1,4 +1,3 @@
-// Not Express middleware itself: middleware/ is our folder for request helpers.
 const mongoose = require('mongoose');
 
 // keeps the cookie under the 4KB browser limit
@@ -11,7 +10,6 @@ function getViewedIds(req) {
   if (typeof cookie !== 'string' || !cookie) {
     return [];
   }
-  // the browser controls the cookie, so drop anything that isn't a real id
   return cookie.split(',').filter((id) => mongoose.isValidObjectId(id));
 }
 

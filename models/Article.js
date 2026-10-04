@@ -29,8 +29,7 @@ const articleSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  // copied from the user when the article is created, so the public feed
-  // can show the author without a join on every request
+  // copied from the user
   authorName: {
     type: String,
     required: true,
@@ -38,7 +37,7 @@ const articleSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    default: '', // the approved version the public sees
+    default: '',
   },
   draftContent: {
     type: String,
@@ -51,7 +50,7 @@ const articleSchema = new mongoose.Schema({
   },
   editorNote: {
     type: String,
-    default: '', // the editor's note when the article is returned for revision
+    default: '',
   },
   publishDate: {
     type: Date,
@@ -72,7 +71,6 @@ const articleSchema = new mongoose.Schema({
 
 // speeds up the home feed sorted by publish date
 articleSchema.index({ status: 1, publishDate: -1 });
-// speeds up the home feed sorted by popularity
 articleSchema.index({ status: 1, viewCount: -1 });
 
 module.exports = mongoose.model('Article', articleSchema);

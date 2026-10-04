@@ -12,11 +12,10 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// checks the feed's query string, returns { error } or { filters }
+// input validation
 function parseFeedQuery(query) {
   const { q, category, viewed, sort, page } = query;
 
-  // anything other than a plain string (e.g. ?q[]=x) is rejected up front
   for (const value of [q, category, viewed, sort, page]) {
     if (value !== undefined && typeof value !== 'string') {
       return { error: 'Invalid query parameter' };
@@ -54,7 +53,7 @@ function parseFeedQuery(query) {
   }
 
   if (page !== undefined) {
-    // digits only, so '1.5', '-1' and 'abc' are all rejected
+    // digits only
     if (!/^\d+$/.test(page) || Number(page) < 1 || Number(page) > MAX_PAGE) {
       return { error: `page must be a whole number from 1 to ${MAX_PAGE}` };
     }
@@ -64,7 +63,6 @@ function parseFeedQuery(query) {
   return { filters };
 }
 
-// one page of published articles matching the filters
 async function findPublishedArticles(filters, viewedIds) {
   const mongoFilter = { status: 'published' };
 

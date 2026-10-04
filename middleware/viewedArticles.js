@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// keeps the cookie under the 4KB browser limit
 const MAX_VIEWED_IDS = 100;
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 

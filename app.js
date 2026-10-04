@@ -13,6 +13,8 @@ const {getJwtSecret}=require('./src/middleware/authMiddleware')
 const connectDB = require('./src/config/db');
 
 const indexRouter = require('./src/routes/index');
+const commentsRouter = require('./src/routes/comments');
+const devTestRouter = require('./src/routes/devTest');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -56,12 +58,23 @@ app.use(async (req, res, next) => {
 
 
 app.use('/', indexRouter);
+app.use('/api/articles/:articleId/comments', commentsRouter);
+app.use('/dev', devTestRouter);
 app.use('/auth', authRoutes);
 
 app.use(function(req, res, next) {
   next(createError(404));
 });
 
+// malformed JSON body on an API request -> JSON error, not the HTML error page
+app.use('/api', function(err, req, res, next) {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Malformed JSON in request body' });
+  }
+  next(err);
+});
+
+// error handler
 app.use(function(err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};

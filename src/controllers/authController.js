@@ -1,15 +1,15 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/user');
+const {getJwtSecret}=require('../middleware/authMiddleware')
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, email: user.email, role: user.role },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '8h' }
   );
 };

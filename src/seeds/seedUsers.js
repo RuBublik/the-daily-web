@@ -7,19 +7,19 @@ const MONGO_URI = process.env.MONGO_URI;
 
 const rawUsers = [
   {
-    name: 'אדמין המערכת',
+    name: 'admin',
     email: 'admin@example.com',
     password: 'AdminPassword123!',
     role: 'admin'
   },
   {
-    name: 'ישראל ישראלי',
+    name: 'user',
     email: 'user@example.com',
     password: 'UserPassword123!',
     role: 'user'
   },
   {
-    name: 'נועה כהן',
+    name: 'noa',
     email: 'noa@example.com',
     password: 'UserPassword123!',
     role: 'user'

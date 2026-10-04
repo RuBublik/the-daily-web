@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models/user'); // ודא שהנתיב והשם (user.js / User.js) תואמים אצלך
+const { User } = require('../models/user');
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
@@ -38,19 +38,19 @@ async function authenticateJwt(req, res, next) {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      return res.status(401).json({ message: 'אין הרשאת גישה - המשתמש שמשויך לטוקן לא נמצא' });
+      return res.status(401).json({ message: 'You do not have permission to perform this action' });
     }
     req.user = user;
     return next();
   } catch (error) {
-    return res.status(401).json({ message: 'טוקן לא תקף או פג תוקף' });
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 }
 
 function requireRole(role) {
   return (req, res, next) => {
     if (!req.user || req.user.role !== role) {
-      return res.status(403).json({ message: 'אין לך הרשאה לבצע פעולה זו' });
+      return res.status(403).json({ message: 'You do not have permission to perform this action' });
     }
     return next();
   };

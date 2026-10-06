@@ -114,7 +114,6 @@
       console.error(err);
     }
 
-    // a slow old search must not overwrite a newer one
     if (requestNumber !== latestRequest) {
       return;
     }

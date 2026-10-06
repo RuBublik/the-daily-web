@@ -145,7 +145,7 @@ async function getArticle(req, res) {
 async function showArticle(req, res, next) {
   const { id } = req.params;
 
-  // an id that cannot exist is just a page that does not exist
+  // gives 404 if not exists
   if (!mongoose.isValidObjectId(id)) {
     return next(createError(404));
   }

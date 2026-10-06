@@ -5,7 +5,7 @@ const { getViewedIds } = require('../middleware/viewedArticles');
 
 async function showHome(req, res, next) {
   let parsed = parseFeedQuery(req.query);
-  // a bad query string on the public page shows the default feed instead of an error page
+  // present default
   if (parsed.error) {
     parsed = parseFeedQuery({});
   }

@@ -84,6 +84,7 @@ How the Article model stores this (`models/Article.js`):
 - `status` is the state of the draft in the flow above, not public visibility. Editing a published article opens a `draft` while `status` stays `published` until the reporter submits it (`pending`).
 - An article is public when `publishDate != null` (set on first approval). Public queries filter on that, never on `status`.
 - Approve = copy `draft` to the top-level fields, set `publishDate` if empty, push the approval time to `publishHistory` (the Impact chart markers), set `draft: null`, `status: 'published'`.
+- The editor can also edit the live version of a published article directly ("Edit live"). It goes public immediately and counts as an approval: the edit time is pushed to `publishHistory`. Use `Article.isPublic(article)` / `Article.hasDraft(article)` in code instead of repeating the checks.
 
 Work continuity: while a reporter is writing/editing, their draft must persist continuously with **no explicit "Save" button** — closing the browser, refreshing, or switching machines must not lose work, and reopening the draft must resume the latest saved state.
 

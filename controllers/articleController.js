@@ -127,7 +127,7 @@ async function getArticle(req, res) {
 
   try {
     // returns only published
-    const article = await Article.findOne({ _id: id, status: 'published' })
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } })
       .select('title summary image category authorName publishDate viewCount content')
       .lean();
 

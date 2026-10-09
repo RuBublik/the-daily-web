@@ -153,8 +153,8 @@ async function showArticle(req, res, next) {
 
   try {
     // drafts and pending articles must not be reachable by guessing the URL,
-    // and only content (the approved version) is selected, never draftContent
-    const article = await Article.findOne({ _id: id, status: 'published' })
+    // and only content (the approved version) is selected, never draft
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } })
       .select('title summary image category authorName publishDate content')
       .lean();
 

@@ -65,7 +65,8 @@ function parseFeedQuery(query) {
 }
 
 async function findPublishedArticles(filters, viewedIds) {
-  const mongoFilter = { status: 'published' };
+  // an article is public once it has been approved (publishDate is set)
+  const mongoFilter = { publishDate: { $ne: null } };
 
   if (filters.q) {
     mongoFilter.title = { $regex: escapeRegex(filters.q), $options: 'i' };
@@ -87,7 +88,7 @@ async function findPublishedArticles(filters, viewedIds) {
   // fetching one extra row tells us whether another page exists without a second count query
   const articles = await Article.find(mongoFilter)
     .sort(sortOrder)
-    // the list never needs the body, and draftContent / editorNote must never leave the server
+    // the list never needs the body, and draft / editorNote must never leave the server
     .select('title summary image category authorName publishDate viewCount')
     .skip((filters.page - 1) * PAGE_SIZE)
     .limit(PAGE_SIZE + 1)
@@ -127,7 +128,7 @@ async function getArticle(req, res) {
 
   try {
     // returns only published
-    const article = await Article.findOne({ _id: id, status: 'published' })
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } })
       .select('title summary image category authorName publishDate viewCount content')
       .lean();
 
@@ -178,8 +179,8 @@ async function showArticle(req, res, next) {
 
   try {
     // drafts and pending articles must not be reachable by guessing the URL,
-    // and only content (the approved version) is selected, never draftContent
-    const article = await Article.findOne({ _id: id, status: 'published' })
+    // and only content (the approved version) is selected, never draft
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } })
       .select('title summary image category authorName publishDate content')
       .lean();
 

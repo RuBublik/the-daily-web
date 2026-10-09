@@ -345,6 +345,13 @@ a {
   align-self: flex-start;
 }
 
+/* display: flex above would otherwise override the hidden attribute that editorArticle.js toggles */
+.edit-form[hidden],
+.return-form[hidden],
+.versions[hidden] {
+  display: none;
+}
+
 /* pending and live versions side by side on wide screens, stacked on narrow ones */
 .versions {
   display: flex;

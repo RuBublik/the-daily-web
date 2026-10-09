@@ -67,10 +67,13 @@
       }
     });
 
+    // editing is its own mode: save or cancel first, so nothing unsaved gets approved or returned
     const toggleEditing = (editing) => {
       editForm.hidden = !editing;
       versions.hidden = editing;
       editButton.hidden = editing;
+      approveButton.hidden = editing;
+      returnForm.hidden = editing;
     };
 
     editButton.addEventListener('click', () => toggleEditing(true));

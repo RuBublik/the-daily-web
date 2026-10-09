@@ -65,17 +65,25 @@ Every model needs full CRUD (Create, Read/List/Search, Update, Delete), and sear
 
 ## Article workflow (state machine)
 
-States: `draft`, `pending_review`, `published`, `returned_for_revision`.
+States (`Article.status`): `draft`, `pending`, `published`, `returned`.
 
 Allowed transitions only:
 
 - New article → created in `draft`.
-- Reporter: `draft` → `pending_review` (their own article only).
-- Editor: `pending_review` → `published`, or → `returned_for_revision` (must attach a note explaining what needs fixing).
-- Reporter: `returned_for_revision` → `pending_review` (after making the requested edits).
+- Reporter: `draft` → `pending` (their own article only).
+- Editor: `pending` → `published`, or → `returned` (must attach a note explaining what needs fixing).
+- Reporter: `returned` → `pending` (after making the requested edits).
 - No other transition is permitted.
 
 Editing an already-published article: the edit goes through the same approval flow as a new submission. The public continues to see the last **approved** version throughout — reporter edits-in-progress, and even a submitted-for-approval update, must never appear publicly until an editor approves them. No requirement to support concurrent multi-user editing of the same article — assume that doesn't happen.
+
+How the Article model stores this (`models/Article.js`):
+
+- The top-level `title`, `summary`, `image`, `category`, `content` are the **approved public version**. They are empty for an article that was never approved.
+- `draft` (`{ title, summary, image, category, content }` or `null`) is the working copy. Reporter autosave and editor edits write only here.
+- `status` is the state of the draft in the flow above, not public visibility. Editing a published article opens a `draft` while `status` stays `published` until the reporter submits it (`pending`).
+- An article is public when `publishDate != null` (set on first approval). Public queries filter on that, never on `status`.
+- Approve = copy `draft` to the top-level fields, set `publishDate` if empty, push the approval time to `publishHistory` (the Impact chart markers), set `draft: null`, `status: 'published'`.
 
 Work continuity: while a reporter is writing/editing, their draft must persist continuously with **no explicit "Save" button** — closing the browser, refreshing, or switching machines must not lose work, and reopening the draft must resume the latest saved state.
 

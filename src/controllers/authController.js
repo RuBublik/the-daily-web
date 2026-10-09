@@ -28,7 +28,7 @@ async function register(req, res, next) {
     const name = String(req.body.username || req.body.name || '').trim();
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    const role = req.body.role === 'admin' ? 'admin' : 'user';
+    const role = req.body.role === 'editor' ? 'editor' : 'reporter';
 
     const renderError = (message) => {
       return res.status(400).render('auth/register', {
@@ -42,12 +42,12 @@ async function register(req, res, next) {
       return renderError('Username, a valid email, and a password of at least 8 characters are required');
     }
     
-    if (role === 'admin') {
-      if (!process.env.ADMIN_SIGNUP_CODE) {
-        return renderError('Administrator registration is currently disabled');
+    if (role === 'editor') {
+      if (!process.env.editor_SIGNUP_CODE) {
+        return renderError('editor registration is currently disabled');
       }
-      if (String(req.body.adminCode || '') !== process.env.ADMIN_SIGNUP_CODE) {
-        return renderError('The administrator registration code is invalid');
+      if (String(req.body.editorCode || '') !== process.env.editor_SIGNUP_CODE) {
+        return renderError('The editor registration code is invalid');
       }
     }
     

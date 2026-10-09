@@ -1,16 +1,34 @@
 const mongoose = require('mongoose');
 const categories = require('../config/categories');
 
+// an article is public once it has been approved at least once (publishDate is set)
+function isPublic() {
+  return this.publishDate != null;
+}
+
+// the working copy a reporter edits (autosaved) and an editor reviews
+const draftSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true, maxlength: 200, default: '' },
+    summary: { type: String, trim: true, maxlength: 500, default: '' },
+    image: { type: String, trim: true, default: '' }, // URL of the main image
+    category: { type: String, enum: categories },
+    content: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const articleSchema = new mongoose.Schema({
+  // title, summary, image, category and content are the approved version the public sees
   title: {
     type: String,
-    required: true,
+    required: isPublic,
     trim: true,
     maxlength: 200,
   },
   summary: {
     type: String,
-    required: true,
+    required: isPublic,
     trim: true,
     maxlength: 500,
   },
@@ -21,8 +39,17 @@ const articleSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: true,
+    required: isPublic,
     enum: categories,
+  },
+  content: {
+    type: String,
+    default: '',
+  },
+  // version being worked on or waiting for approval, null when no edit is open
+  draft: {
+    type: draftSchema,
+    default: null,
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,
@@ -35,14 +62,7 @@ const articleSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  content: {
-    type: String,
-    default: '',
-  },
-  draftContent: {
-    type: String,
-    default: null, // version being worked on or waiting for approval, null when no edit is open
-  },
+  // state of the draft in the approval flow, not whether the public sees the article
   status: {
     type: String,
     enum: ['draft', 'pending', 'published', 'returned'],
@@ -52,9 +72,15 @@ const articleSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // first approval, null until then
   publishDate: {
     type: Date,
     default: null,
+  },
+  // every editor approval, marks updates on the views chart
+  publishHistory: {
+    type: [Date],
+    default: [],
   },
   lastUpdated: {
     type: Date,
@@ -68,7 +94,9 @@ const articleSchema = new mongoose.Schema({
 });
 
 // indexes creation
-articleSchema.index({ status: 1, publishDate: -1 });
-articleSchema.index({ status: 1, viewCount: -1 });
+articleSchema.index({ publishDate: -1 });
+articleSchema.index({ viewCount: -1 });
+articleSchema.index({ status: 1, lastUpdated: -1 });
+articleSchema.index({ author: 1, lastUpdated: -1 });
 
 module.exports = mongoose.model('Article', articleSchema);

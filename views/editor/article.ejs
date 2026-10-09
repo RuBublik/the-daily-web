@@ -1,0 +1,82 @@
+<%- include('../partials/header') %>
+  <section class="editor-article" id="editor-article" data-article-id="<%= article._id %>">
+    <a class="back-link" href="/editor">Back to all articles</a>
+
+    <header class="editor-article-header">
+      <h1 dir="auto"><%= row.title %></h1>
+      <p class="editor-article-meta">
+        <span class="status-pill <%= article.status %>"><%= article.status %></span>
+        <% if (row.isUpdate) { %><span class="update-badge">update to a published article</span><% } %>
+        · By <%= article.authorName %>
+        · Last updated <time datetime="<%= article.lastUpdated.toISOString() %>"><%= article.lastUpdated.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %></time>
+        <% if (isPublic) { %>
+          · Published <time datetime="<%= article.publishDate.toISOString() %>"><%= article.publishDate.toLocaleDateString('en-US', { dateStyle: 'medium' }) %></time>
+          · <a href="/article/<%= article._id %>">Public page</a>
+        <% } %>
+      </p>
+    </header>
+
+    <% if (article.editorNote) { %>
+      <div class="editor-note">
+        <strong>Note to the reporter:</strong>
+        <p dir="auto"><%= article.editorNote %></p>
+      </div>
+    <% } %>
+
+    <p class="editor-message" id="editor-message" aria-live="polite"></p>
+
+    <% if (canReview) { %>
+      <div class="editor-actions">
+        <button type="button" id="edit-button">Edit</button>
+        <button type="button" class="primary" id="approve-button">Approve and publish</button>
+      </div>
+
+      <form class="return-form" id="return-form">
+        <label for="return-note">Return to the reporter, with a note on what to fix</label>
+        <textarea id="return-note" name="note" rows="3" maxlength="1000" required></textarea>
+        <button type="submit">Return for revision</button>
+      </form>
+
+      <form class="edit-form" id="edit-form" hidden>
+        <label>Title <input name="title" value="<%= article.draft.title %>" maxlength="200" required></label>
+        <label>Summary <textarea name="summary" rows="2" maxlength="500"><%= article.draft.summary %></textarea></label>
+        <label>Image URL <input name="image" type="url" value="<%= article.draft.image %>"></label>
+        <label>
+          Category
+          <select name="category">
+            <% categories.forEach((category) => { %>
+              <option value="<%= category %>" <%= article.draft.category === category ? 'selected' : '' %>><%= category %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Content <textarea name="content" rows="12"><%= article.draft.content %></textarea></label>
+        <div class="editor-actions">
+          <button type="submit" class="primary">Save changes</button>
+          <button type="button" id="edit-cancel">Cancel</button>
+        </div>
+      </form>
+    <% } %>
+
+    <div class="versions" id="versions">
+      <% if (article.draft) { %>
+        <%- include('../partials/editor-article-version', {
+          kind: 'pending',
+          heading: isPublic ? 'New version (waiting for approval)' : 'Submitted version',
+          version: article.draft,
+        }) %>
+      <% } %>
+      <% if (isPublic) { %>
+        <%- include('../partials/editor-article-version', {
+          kind: 'live',
+          heading: 'Live version',
+          version: article,
+        }) %>
+      <% } %>
+    </div>
+
+    <div class="editor-actions danger-zone">
+      <button type="button" class="danger" id="delete-button">Delete article</button>
+    </div>
+  </section>
+  <script src="/js/editorArticle.js"></script>
+<%- include('../partials/footer') %>

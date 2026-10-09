@@ -9,10 +9,10 @@ function isPublic() {
 // the working copy a reporter edits (autosaved) and an editor reviews
 const draftSchema = new mongoose.Schema(
   {
-    title: { type: String, trim: true, maxlength: 200, default: '' },
-    summary: { type: String, trim: true, maxlength: 500, default: '' },
+    title: { type: String, trim: true, maxlength: [200, 'Title must be 200 characters or fewer'], default: '' },
+    summary: { type: String, trim: true, maxlength: [500, 'Summary must be 500 characters or fewer'], default: '' },
     image: { type: String, trim: true, default: '' }, // URL of the main image
-    category: { type: String, enum: categories },
+    category: { type: String, enum: { values: categories, message: 'Unknown category' } },
     content: { type: String, default: '' },
   },
   { _id: false }

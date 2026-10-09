@@ -1,0 +1,19 @@
+<%# one version of an article (the draft or the live one) on the editor's review page %>
+<section class="version <%= kind %>">
+  <h2><%= heading %></h2>
+  <% if (version.image) { %>
+    <img class="version-image" src="<%= version.image %>" alt="">
+  <% } %>
+  <h3 dir="auto"><%= version.title || '(no title)' %></h3>
+  <p class="version-category"><%= version.category || '(no category)' %></p>
+  <p class="version-summary" dir="auto"><%= version.summary || '(no summary)' %></p>
+  <div class="version-body">
+    <% const paragraphs = (version.content || '').split(/\n+/).filter((p) => p.trim()); %>
+    <% if (paragraphs.length === 0) { %>
+      <p>(no content)</p>
+    <% } %>
+    <% paragraphs.forEach((paragraph) => { %>
+      <p dir="auto"><%= paragraph %></p>
+    <% }); %>
+  </div>
+</section>

@@ -1,20 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
-const { User } = require('../src/models/user');
-const controller = require('../src/controllers/authController');
-const { requireRole, authenticateJwt } = require('../src/middleware/authMiddleware');
+const { User } = require('../models/user');
+const controller = require('../controllers/authController');
+const { requireRole, authenticateJwt } = require('../middleware/authMiddleware');
 
 function makeUser(overrides = {}) {
   return new User({
-    name: 'Dana Cohen',
-    email: 'dana@example.com',
+    username: 'dana_cohen',
     passwordHash: 'hashed_password_example',
     role: 'reporter',
     ...overrides,
   });
 }
-
 
 test('a fully-filled user passes validation', () => {
   assert.strictEqual(makeUser().validateSync(), undefined);
@@ -25,29 +23,20 @@ test('accepts role "editor" and "reporter"', () => {
   assert.strictEqual(makeUser({ role: 'reporter' }).validateSync(), undefined);
 });
 
-test('rejects missing name', () => {
-  const err = makeUser({ name: '' }).validateSync();
-  assert.ok(err && err.errors.name);
+test('rejects missing name/username', () => {
+  const err = makeUser({ username: '' }).validateSync();
+  assert.ok(err && err.errors.username);
 });
 
-test('rejects name over 100 characters', () => {
-  const err = makeUser({ name: 'a'.repeat(101) }).validateSync();
-  assert.ok(err && err.errors.name);
-});
-
-test('rejects missing email', () => {
-  const err = makeUser({ email: '' }).validateSync();
-  assert.ok(err && err.errors.email);
+test('rejects name/username over 100 characters', () => {
+  const err = makeUser({ username: 'a'.repeat(101) }).validateSync();
+  assert.ok(err && err.errors.username);
 });
 
 test('rejects missing passwordHash', () => {
   const err = makeUser({ passwordHash: '' }).validateSync();
   assert.ok(err && err.errors.passwordHash);
 });
-
-// -------------------------------------------------------------
-// 2. Auth Controller Integration Tests (Mocking req/res)
-// -------------------------------------------------------------
 
 function mockResponse() {
   const res = {
@@ -84,11 +73,10 @@ function mockResponse() {
   return res;
 }
 
-test('register rejects request when name is missing', async () => {
+test('register rejects request when username is missing', async () => {
   const req = {
     body: {
-      name: '',
-      email: 'test@example.com',
+      username: '',
       password: 'password123',
       role: 'reporter'
     }
@@ -99,14 +87,13 @@ test('register rejects request when name is missing', async () => {
 
   assert.strictEqual(res.statusCode, 400);
   assert.strictEqual(res.renderedView, 'auth/register');
-  assert.match(res.renderData.error, /Username, a valid email/);
+  assert.match(res.renderData.error, /Username and a password/);
 });
 
 test('register rejects short password (less than 8 characters)', async () => {
   const req = {
     body: {
-      name: 'Dana',
-      email: 'test@example.com',
+      username: 'dana_cohen',
       password: '123',
       role: 'reporter'
     }
@@ -124,8 +111,7 @@ test('register editor fails when editor_SIGNUP_CODE is disabled in env', async (
   delete process.env.editor_SIGNUP_CODE;
   const req = {
     body: {
-      name: 'Editor User',
-      email: 'editor@example.com',
+      username: 'editor_user',
       password: 'password123',
       role: 'editor',
       editorCode: 'SOME_CODE'
@@ -143,8 +129,7 @@ test('register editor fails if editorCode is invalid', async () => {
   process.env.editor_SIGNUP_CODE = 'CORRECT_CODE';
   const req = {
     body: {
-      name: 'Editor User',
-      email: 'editor@example.com',
+      username: 'editor_user',
       password: 'password123',
       role: 'editor',
       editorCode: 'WRONG_CODE'
@@ -158,10 +143,10 @@ test('register editor fails if editorCode is invalid', async () => {
   assert.strictEqual(res.renderData.error, 'The editor registration code is invalid');
 });
 
-test('login fails with missing email or password', async () => {
+test('login fails with missing username or password', async () => {
   const req = {
     body: {
-      email: '',
+      username: '',
       password: ''
     }
   };
@@ -171,11 +156,10 @@ test('login fails with missing email or password', async () => {
 
   assert.strictEqual(res.statusCode, 401);
   assert.strictEqual(res.renderedView, 'auth/login');
-  assert.strictEqual(res.renderData.error, 'Email and password are required');
+  assert.strictEqual(res.renderData.error, 'Username and password are required');
 });
 
-test('login fails when user email is not found', async () => {
-  // Mock User.findOne to simulate non-existing user
+test('login fails when username is not found', async () => {
   const originalFindOne = User.findOne;
   User.findOne = () => ({
     select: () => Promise.resolve(null)
@@ -183,7 +167,7 @@ test('login fails when user email is not found', async () => {
 
   const req = {
     body: {
-      email: 'notfound@example.com',
+      username: 'notfound_user',
       password: 'password123'
     }
   };
@@ -192,15 +176,10 @@ test('login fails when user email is not found', async () => {
   await controller.login(req, res, (err) => { throw err; });
 
   assert.strictEqual(res.statusCode, 401);
-  assert.strictEqual(res.renderData.error, 'Invalid email or password');
+  assert.strictEqual(res.renderData.error, 'Invalid username or password');
 
-  // Restore original function
   User.findOne = originalFindOne;
 });
-
-// -------------------------------------------------------------
-// 3. Middleware Permission & Access Control Tests
-// -------------------------------------------------------------
 
 test('requireRole middleware allows access when user role matches', () => {
   const middleware = requireRole('editor');
@@ -215,7 +194,7 @@ test('requireRole middleware allows access when user role matches', () => {
   assert.strictEqual(nextCalled, true);
 });
 
-test('requireRole middleware blocks access (403) when role does not match', () => {
+test('requireRole middleware blocks access (401) when role does not match', () => {
   const middleware = requireRole('editor');
   const req = { user: { role: 'reporter' } };
   const res = mockResponse();
@@ -226,7 +205,7 @@ test('requireRole middleware blocks access (403) when role does not match', () =
   });
 
   assert.strictEqual(nextCalled, false);
-  assert.strictEqual(res.statusCode, 403);
+  assert.strictEqual(res.statusCode, 401);
   assert.strictEqual(res.jsonBody.message, 'You do not have permission to perform this action');
 });
 

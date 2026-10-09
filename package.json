@@ -6,7 +6,7 @@
     "start": "node ./bin/www",
     "dev": "node --watch ./bin/www",
     "test": "node --test",
-    "seed" : "node src/seeds/seedUsers.js"
+    "seed" : "node seeds/seedUsers.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

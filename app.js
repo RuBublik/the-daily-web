@@ -6,15 +6,15 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser')
-const authRoutes = require('./src/routes/authRoutes');
-const { User } = require('./src/models/user');
-const {getJwtSecret}=require('./src/middleware/authMiddleware')
+const authRoutes = require('./routes/authRoutes');
+const { User } = require('./models/user');
+const {getJwtSecret}=require('./middleware/authMiddleware')
 
-const connectDB = require('./src/config/db');
+const connectDB = require('./config/db');
 
-const indexRouter = require('./src/routes/index');
-const commentsRouter = require('./src/routes/comments');
-const devTestRouter = require('./src/routes/devTest');
+const indexRouter = require('./routes/index');
+const commentsRouter = require('./routes/comments');
+const devTestRouter = require('./routes/devTest');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);

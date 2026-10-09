@@ -12,12 +12,12 @@
 
     <form action="/auth/login" method="POST">
       <div class="form-group">
-        <label for="email">Email Address</label>
+        <label for="username">Username</label>
         <input 
-          type="email" 
-          id="email" 
-          name="email" 
-          value="<%= locals.email ? email : '' %>" 
+          type="text" 
+          id="username" 
+          name="username" 
+          value="<%= locals.username ? username : '' %>" 
           required
         >
       </div>

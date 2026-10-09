@@ -1,4 +1,4 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models/user');
@@ -7,20 +7,17 @@ const MONGO_URI = process.env.MONGO_URI;
 
 const rawUsers = [
   {
-    name: 'editor',
-    email: 'editor@example.com',
+    username: 'editor',
     password: 'editorPassword123!',
     role: 'editor'
   },
   {
-    name: 'reporter',
-    email: 'reporter@example.com',
+    username: 'reporter',
     password: 'reporterPassword123!',
     role: 'reporter'
   },
   {
-    name: 'noa',
-    email: 'noa@example.com',
+    username: 'noa',
     password: 'reporterPassword123!',
     role: 'reporter'
   }
@@ -40,8 +37,7 @@ async function seedUsers() {
       rawUsers.map(async (user) => {
         const passwordHash = await bcrypt.hash(user.password, rounds);
         return {
-          name: user.name,
-          email: user.email.toLowerCase(),
+          username: user.username,
           passwordHash,
           role: user.role
         };

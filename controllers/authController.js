@@ -1,14 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/user');
-const {getJwtSecret}=require('../middleware/authMiddleware')
+const { getJwtSecret } = require('../middleware/authMiddleware');
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
+    { id: user._id, username: user.username, role: user.role },
     getJwtSecret(),
     { expiresIn: '8h' }
   );
@@ -19,14 +18,13 @@ const sendTokenCookie = (res, token) => {
     httpOnly: true,
     sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000, 
+    maxAge: 8 * 60 * 60 * 1000, 
   });
 };
 
 async function register(req, res, next) {
   try {
-    const name = String(req.body.username || req.body.name || '').trim();
-    const email = String(req.body.email || '').trim().toLowerCase();
+    const username = String(req.body.username || req.body.name || '').trim().toLowerCase();
     const password = String(req.body.password || '');
     const role = req.body.role === 'editor' ? 'editor' : 'reporter';
 
@@ -34,12 +32,12 @@ async function register(req, res, next) {
       return res.status(400).render('auth/register', {
         title: 'Register - The Daily Web',
         error: message,
-        formData: { name, email }
+        formData: { username }
       });
     };
 
-    if (!name || !emailPattern.test(email) || password.length < 8) {
-      return renderError('Username, a valid email, and a password of at least 8 characters are required');
+    if (!username || password.length < 8) {
+      return renderError('Username and a password of at least 8 characters are required');
     }
     
     if (role === 'editor') {
@@ -51,16 +49,15 @@ async function register(req, res, next) {
       }
     }
     
-    if (await User.exists({ email })) {
-      return renderError('An account with this email already exists');
+    if (await User.exists({ username })) {
+      return renderError('An account with this username already exists');
     }
 
     const rounds = Math.min(Math.max(Number(process.env.BCRYPT_ROUNDS || 10), 8), 14);
     const passwordHash = await bcrypt.hash(password, rounds);
 
     const user = await User.create({
-      name,
-      email,
+      username,
       passwordHash,
       role
     });
@@ -76,29 +73,29 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const email = String(req.body.email || '').trim().toLowerCase();
+    const username = String(req.body.username || '').trim().toLowerCase();
     const password = String(req.body.password || '');
 
     const renderError = (message) => {
       return res.status(401).render('auth/login', {
         title: 'Login - The Daily Web',
         error: message,
-        email 
+        username 
       });
     };
 
-    if (!email || !password) {
-      return renderError('Email and password are required');
+    if (!username || !password) {
+      return renderError('Username and password are required');
     }
 
-    const user = await User.findOne({ email }).select('+passwordHash');
+    const user = await User.findOne({ username }).select('+passwordHash');
     if (!user) {
-      return renderError('Invalid email or password');
+      return renderError('Invalid username or password');
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return renderError('Invalid email or password');
+      return renderError('Invalid username or password');
     }
 
     const token = generateToken(user);

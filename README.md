@@ -95,8 +95,7 @@ Until the real article page (home feed / article view) exists, the widget can be
 ### Users Table
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID / INT | Primary Key |
-| `email` | String | Unique user email |
+| `username` | String | Unique user name |
 | `password` | String | Hashed password |
 | `role` | Enum | User role: `editor` or `reporter` |
 | `created_at` | Timestamp | Account creation date |

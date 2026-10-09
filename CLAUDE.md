@@ -49,11 +49,7 @@ the-daily-web/
 ## Data models (minimum four)
 
 1. **Users** — reporters and editors (guests are unauthenticated, no user record needed for them). Username/password auth; passwords must be hashed, never stored or recoverable in plain text.
-2. **Articles** (`models/Article.js`, implemented). Fields: `title`, `summary`, `image`, `category` (one of `config/categories.js`), `author` (ObjectId ref `User`), `authorName`, `content`, `draftContent`, `status`, `editorNote`, `publishDate`, `lastUpdated`, `viewCount`.
-   - `content` is the approved version the public sees. `draftContent` is the version being worked on or waiting for approval (null when no edit is open). Public code selects `content` only and never returns `draftContent` or `editorNote`.
-   - `authorName` is a copy of the author's display name, written whenever an article is created, so the public feed shows the author without a join. Any code that creates articles (reporter area, seed) must fill it.
-   - `viewCount` is a running total used for the popularity sort. It is increased with an atomic `$inc` in `articleController.recordView`.
-   - `status` values are exactly `draft`, `pending`, `published`, `returned`.
+2. **Articles** — see workflow below for required fields (state, category, title, image, body, author, timestamps, current published version vs. pending version).
 3. **Comments** — belong to an article; must support the comment rate limit below.
 4. **View/analytics data** — records of article views over time, granular enough to drive the per-article views-over-time chart, including timestamps of when an editor approved/published an update to that article (so the graph can mark before/after behavior around each update). Design this to remain performant with thousands of articles and many concurrent readers — an approach that aggregates/buckets view events rather than storing every raw hit unbounded is worth considering.
 
@@ -64,7 +60,8 @@ Every model needs full CRUD (Create, Read/List/Search, Update, Delete), and sear
 These conventions are already in the code. New work should build on them, not replace them.
 
 - Routes: `GET /` (home feed) and `GET /article/:id` (article page) in `routes/index.js`. JSON API in `routes/articles.js`: `GET /api/articles`, `GET /api/articles/:id`, `POST /api/articles/:id/view`. The comments router is mounted before the articles router in `app.js` because its path is more specific.
-- `articleController.parseFeedQuery` validates the feed query string (`q`, `category`, `viewed`, `sort`, `page`) and `articleController.findPublishedArticles` runs the query. The home page render and the API both call these two functions, so the server-rendered first page and the Ajax pages always agree. Page size is 20.
+- `articleController.parseFeedQuery` validates the feed query string (`q`, `category`, `viewed`, `sort`, `page`) and `articleController.findPublishedArticles` runs the query, filtering on `publishDate != null`. The home page render and the API both call these two functions, so the server-rendered first page and the Ajax pages always agree. Page size is 20.
+- Every public query selects only the approved top-level fields. `draft` and `editorNote` never leave the server.
 - The API answers bad input with `400` and a JSON `{ error }`. The home page falls back to the default feed instead of showing an error.
 - Viewed / not viewed for guests: a `viewed` cookie holds the ids of the last 100 articles the guest opened (`middleware/viewedArticles.js`, read with `cookie-parser`). It is set when the article page is rendered and validated on every read.
 - `POST /api/articles/:id/view` is sent by `public/js/article.js` on every article page load. The analytics work extends `recordView` to also store view history. It must keep increasing `viewCount`.
@@ -82,7 +79,7 @@ These conventions are already in the code. New work should build on them, not re
 
 ## Article workflow (state machine)
 
-States: `draft`, `pending`, `published`, `returned`.
+States (`Article.status`): `draft`, `pending`, `published`, `returned`.
 
 Allowed transitions only:
 
@@ -93,6 +90,14 @@ Allowed transitions only:
 - No other transition is permitted.
 
 Editing an already-published article: the edit goes through the same approval flow as a new submission. The public continues to see the last **approved** version throughout — reporter edits-in-progress, and even a submitted-for-approval update, must never appear publicly until an editor approves them. No requirement to support concurrent multi-user editing of the same article — assume that doesn't happen.
+
+How the Article model stores this (`models/Article.js`):
+
+- The top-level `title`, `summary`, `image`, `category`, `content` are the **approved public version**. They are empty for an article that was never approved.
+- `draft` (`{ title, summary, image, category, content }` or `null`) is the working copy. Reporter autosave and editor edits write only here.
+- `status` is the state of the draft in the flow above, not public visibility. Editing a published article opens a `draft` while `status` stays `published` until the reporter submits it (`pending`).
+- An article is public when `publishDate != null` (set on first approval). Public queries filter on that, never on `status`.
+- Approve = copy `draft` to the top-level fields, set `publishDate` if empty, push the approval time to `publishHistory` (the Impact chart markers), set `draft: null`, `status: 'published'`.
 
 Work continuity: while a reporter is writing/editing, their draft must persist continuously with **no explicit "Save" button** — closing the browser, refreshing, or switching machines must not lose work, and reopening the draft must resume the latest saved state.
 

@@ -154,7 +154,7 @@ async function recordView(req, res) {
   try {
     // $inc is atomic, so many readers at once never lose a count
     const result = await Article.updateOne(
-      { _id: id, status: 'published' },
+      { _id: id, publishDate: { $ne: null } },
       { $inc: { viewCount: 1 } }
     );
 

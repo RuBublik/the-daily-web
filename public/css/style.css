@@ -195,3 +195,70 @@ a {
   border-top: 1px solid #f1f5f9;
   padding-top: 0.75rem;
 }
+/* Editor area */
+.editor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.editor-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.editor-filters select,
+.editor-filters input {
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+}
+
+/* tables don't shrink well, so on narrow screens the table scrolls sideways inside its wrapper */
+.editor-table-wrapper {
+  overflow-x: auto;
+}
+
+.editor-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editor-table th,
+.editor-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.editor-table td:first-child {
+  white-space: normal;
+  min-width: 14rem;
+}
+
+.status-pill {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  background-color: #f3f4f6;
+}
+
+.status-pill.pending { background-color: #fef3c7; }
+.status-pill.published { background-color: #dcfce7; }
+.status-pill.returned { background-color: #fee2e2; }
+
+.update-badge {
+  font-size: 0.75rem;
+  color: #2563eb;
+}
+
+.load-more {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}

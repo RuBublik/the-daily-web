@@ -11,6 +11,7 @@ const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
 const devTestRouter = require('./routes/devTest');
 const editorRouter = require('./routes/editor');
+const editorApiRouter = require('./routes/editorApi');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -33,6 +34,7 @@ app.use('/', indexRouter);
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/dev', devTestRouter);
 app.use('/editor', requireRole('editor'), editorRouter);
+app.use('/api/editor', requireRole('editor'), editorApiRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

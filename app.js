@@ -5,6 +5,7 @@ const express = require('express');
 const path = require('path');
 const logger = require('morgan');
 const connectDB = require('./config/db');
+const { devUser } = require('./middleware/auth');
 
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
@@ -25,6 +26,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(devUser); // temporary, until the real login (#26)
 
 app.use('/', indexRouter);
 app.use('/api/articles/:articleId/comments', commentsRouter);

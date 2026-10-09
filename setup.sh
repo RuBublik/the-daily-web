@@ -69,3 +69,12 @@ Next:
   2. npm start
 
 EOF
+
+
+if npm run seed >/dev/null 2>&1; then
+  ok "database seeded successfully"
+else
+  printf '  [%s!%s] Could not seed database — make sure MongoDB is running, then run: npm run seed\n' "$RED" "$RESET"
+fi
+
+printf '\nSetup completed successfully!\n\n'

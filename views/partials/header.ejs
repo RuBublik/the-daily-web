@@ -9,5 +9,8 @@
   <body>
     <header>
       <a href="/">The Daily Web</a>
+      <% if (locals.user && user.role === 'editor') { %>
+        <a href="/editor">Editor area</a>
+      <% } %>
     </header>
     <main class="container">

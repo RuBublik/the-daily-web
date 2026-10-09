@@ -5,11 +5,12 @@ const express = require('express');
 const path = require('path');
 const logger = require('morgan');
 const connectDB = require('./config/db');
-const { devUser } = require('./middleware/auth');
+const { devUser, requireRole } = require('./middleware/auth');
 
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
 const devTestRouter = require('./routes/devTest');
+const editorRouter = require('./routes/editor');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -31,6 +32,7 @@ app.use(devUser); // temporary, until the real login (#26)
 app.use('/', indexRouter);
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/dev', devTestRouter);
+app.use('/editor', requireRole('editor'), editorRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

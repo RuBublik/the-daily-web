@@ -318,6 +318,12 @@ a {
   border: none;
 }
 
+/* grayed out: e.g. "Edit live" on an article that was never published */
+.editor-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .return-form,
 .edit-form {
   display: flex;
@@ -331,6 +337,17 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.edit-form h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.edit-form-note {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.9rem;
 }
 
 .return-form textarea,

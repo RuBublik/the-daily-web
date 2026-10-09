@@ -25,36 +25,44 @@
 
     <p class="editor-message" id="editor-message" aria-live="polite"></p>
 
-    <% if (canReview) { %>
-      <div class="editor-actions">
-        <button type="button" id="edit-button">Edit</button>
+    <%# a button that can't be used stays visible but grayed out, with the reason as its tooltip %>
+    <div class="editor-actions">
+      <button type="button" data-edit-form="edit-draft-form"
+        <%- hasDraft ? '' : 'disabled title="No draft: nobody is working on a new version of this article"' %>>Edit draft</button>
+      <button type="button" data-edit-form="edit-live-form"
+        <%- isPublic ? '' : 'disabled title="No live version: this article was never published"' %>>Edit live</button>
+      <% if (canReview) { %>
         <button type="button" class="primary" id="approve-button">Approve and publish</button>
-      </div>
+      <% } %>
+    </div>
 
+    <% if (canReview) { %>
       <form class="return-form" id="return-form">
         <label for="return-note">Return to the reporter, with a note on what to fix</label>
         <textarea id="return-note" name="note" rows="3" maxlength="1000" required></textarea>
         <button type="submit">Return for revision</button>
       </form>
+    <% } %>
 
-      <form class="edit-form" id="edit-form" hidden>
-        <label>Title <input name="title" value="<%= article.draft.title %>" maxlength="200" required></label>
-        <label>Summary <textarea name="summary" rows="2" maxlength="500"><%= article.draft.summary %></textarea></label>
-        <label>Image URL <input name="image" type="url" value="<%= article.draft.image %>"></label>
-        <label>
-          Category
-          <select name="category">
-            <% categories.forEach((category) => { %>
-              <option value="<%= category %>" <%= article.draft.category === category ? 'selected' : '' %>><%= category %></option>
-            <% }); %>
-          </select>
-        </label>
-        <label>Content <textarea name="content" rows="12"><%= article.draft.content %></textarea></label>
-        <div class="editor-actions">
-          <button type="submit" class="primary">Save changes</button>
-          <button type="button" id="edit-cancel">Cancel</button>
-        </div>
-      </form>
+    <% if (hasDraft) { %>
+      <%- include('../partials/editor-edit-form', {
+        target: 'draft',
+        heading: 'Edit draft',
+        notes: ['Saving does not affect the public version.'],
+        version: article.draft,
+        saveLabel: 'Save draft',
+      }) %>
+    <% } %>
+    <% if (isPublic) { %>
+      <%- include('../partials/editor-edit-form', {
+        target: 'live',
+        heading: 'Edit live version',
+        notes: hasDraft
+          ? ['Saving publishes the changes immediately.', 'This article also has a draft.']
+          : ['Saving publishes the changes immediately.'],
+        version: article,
+        saveLabel: 'Save and publish',
+      }) %>
     <% } %>
 
     <div class="versions" id="versions">

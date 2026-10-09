@@ -68,7 +68,7 @@ function toListRow(article) {
     status: article.status,
     lastUpdated: article.lastUpdated,
     // a published article with an edit open: approving it replaces what the public sees
-    isUpdate: article.publishDate != null && article.draft != null,
+    isUpdate: Article.isPublic(article) && Article.hasDraft(article),
   };
 }
 
@@ -154,8 +154,10 @@ async function showArticle(req, res, next) {
       title: 'Review article - The Daily Web',
       article,
       row: toListRow(article),
-      isPublic: article.publishDate != null,
-      // approve, return and edit only make sense while the article waits for the editor
+      // which of "Edit draft" / "Edit live" are available
+      hasDraft: Article.hasDraft(article),
+      isPublic: Article.isPublic(article),
+      // approve and return only make sense while the article waits for the editor
       canReview: article.status === 'pending',
       categories: Article.schema.path('category').enumValues,
     });
@@ -273,9 +275,9 @@ async function returnArticle(req, res) {
   }
 }
 
-// only known draft fields, and only strings, ever reach the database
-function parseDraftEdit(body) {
-  const set = {};
+// only known version fields, and only strings, ever reach the database
+function parseVersionEdit(body) {
+  const fields = {};
   for (const field of VERSION_FIELDS) {
     const value = body?.[field];
     if (value === undefined) {
@@ -284,49 +286,111 @@ function parseDraftEdit(body) {
     if (typeof value !== 'string') {
       return { error: `${field} must be text` };
     }
-    set[`draft.${field}`] = value;
+    fields[field] = value;
   }
-  if (Object.keys(set).length === 0) {
+  if (Object.keys(fields).length === 0) {
     return { error: 'Nothing to update' };
   }
-  return { set };
+  return { fields };
 }
 
-// PATCH /api/editor/articles/:id, the editor edits the version waiting for approval
-async function editArticle(req, res) {
+function handleEditError(err, res) {
+  // a value the schema rejects, e.g. an unknown category or a title that is too long
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ error: Object.values(err.errors)[0].message });
+  }
+  console.error('Failed to edit article:', err);
+  res.status(500).json({ error: 'Could not save the changes' });
+}
+
+// PATCH /api/editor/articles/:id/draft, the version being worked on or waiting for approval.
+// works in any status that has a draft, and does not change the status
+async function editDraft(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
     return invalidId(res);
   }
 
-  const { error, set } = parseDraftEdit(req.body);
+  const { error, fields } = parseVersionEdit(req.body);
   if (error) {
     return res.status(400).json({ error });
   }
 
   try {
-    set.lastUpdated = new Date();
+    const article = await Article.findById(id).select('draft').lean();
+    if (!article) {
+      return articleNotFound(res);
+    }
+    if (!Article.hasDraft(article)) {
+      return res.status(400).json({ error: 'This article has no draft to edit' });
+    }
+
+    const set = { lastUpdated: new Date() };
+    for (const [field, value] of Object.entries(fields)) {
+      set[`draft.${field}`] = value;
+    }
+    // the draft condition fails if it was approved (and cleared) since we read the article
     const updated = await Article.findOneAndUpdate(
-      { _id: id, status: 'pending', draft: { $ne: null } },
+      { _id: id, draft: { $ne: null } },
       { $set: set },
       { returnDocument: 'after', runValidators: true }
     ).lean();
-
     if (!updated) {
-      const exists = await Article.exists({ _id: id });
-      return exists
-        ? res.status(400).json({ error: 'Only an article waiting for approval can be edited' })
-        : articleNotFound(res);
+      return res.status(409).json({ error: 'The article changed meanwhile, reload the page' });
     }
 
     res.json({ draft: updated.draft });
   } catch (err) {
-    // a value the schema rejects, e.g. an unknown category or a title that is too long
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ error: Object.values(err.errors)[0].message });
+    handleEditError(err, res);
+  }
+}
+
+// PATCH /api/editor/articles/:id/live, the version readers see now.
+// the editor is the one who approves, so the change is published right away
+async function editLive(req, res) {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    return invalidId(res);
+  }
+
+  const { error, fields } = parseVersionEdit(req.body);
+  if (error) {
+    return res.status(400).json({ error });
+  }
+
+  try {
+    const article = await Article.findById(id).lean();
+    if (!article) {
+      return articleNotFound(res);
     }
-    console.error('Failed to edit article:', err);
-    res.status(500).json({ error: 'Could not save the changes' });
+    if (!Article.isPublic(article)) {
+      return res.status(400).json({ error: 'This article was never published, edit its draft instead' });
+    }
+    // a live article must keep everything its public page shows
+    const missing = missingToPublish({ ...article, ...fields });
+    if (missing.length > 0) {
+      return res.status(400).json({ error: `A published article needs: ${missing.join(', ')}` });
+    }
+
+    const now = new Date();
+    const updated = await Article.findOneAndUpdate(
+      { _id: id },
+      // recorded like an approval, so the views chart marks this update too
+      { $set: { ...fields, lastUpdated: now }, $push: { publishHistory: now } },
+      { returnDocument: 'after', runValidators: true }
+    ).lean();
+    if (!updated) {
+      return articleNotFound(res);
+    }
+
+    console.log(`Published article ${id} edited live by editor ${req.user.username}`);
+    const live = {};
+    for (const field of VERSION_FIELDS) {
+      live[field] = updated[field];
+    }
+    res.json({ live });
+  } catch (err) {
+    handleEditError(err, res);
   }
 }
 
@@ -358,12 +422,13 @@ module.exports = {
   showArticle,
   approveArticle,
   returnArticle,
-  editArticle,
+  editDraft,
+  editLive,
   deleteArticle,
   parseListQuery,
   toListRow,
   missingToPublish,
   buildApprovalUpdate,
-  parseDraftEdit,
+  parseVersionEdit,
   PAGE_SIZE,
 };

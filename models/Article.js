@@ -1,9 +1,20 @@
 const mongoose = require('mongoose');
 const categories = require('../config/categories');
 
-// an article is public once it has been approved at least once (publishDate is set)
-function isPublic() {
-  return this.publishDate != null;
+// an article is public once it has been approved at least once (publishDate is set).
+// takes the article as a parameter, so it works on documents and on .lean() results alike
+function isPublic(article) {
+  return article.publishDate != null;
+}
+
+// an article has a draft while a version is being worked on or waits for approval
+function hasDraft(article) {
+  return article.draft != null;
+}
+
+// mongoose calls a `required` function with the document as `this`
+function requiredOncePublic() {
+  return isPublic(this);
 }
 
 // the working copy a reporter edits (autosaved) and an editor reviews
@@ -22,13 +33,13 @@ const articleSchema = new mongoose.Schema({
   // title, summary, image, category and content are the approved version the public sees
   title: {
     type: String,
-    required: isPublic,
+    required: requiredOncePublic,
     trim: true,
     maxlength: 200,
   },
   summary: {
     type: String,
-    required: isPublic,
+    required: requiredOncePublic,
     trim: true,
     maxlength: 500,
   },
@@ -39,7 +50,7 @@ const articleSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: isPublic,
+    required: requiredOncePublic,
     enum: categories,
   },
   content: {
@@ -109,6 +120,9 @@ articleSchema.statics.canTransition = function (from, to, role) {
   const allowed = (TRANSITIONS[role] || {})[from] || [];
   return allowed.includes(to);
 };
+
+articleSchema.statics.isPublic = isPublic;
+articleSchema.statics.hasDraft = hasDraft;
 
 // indexes creation
 articleSchema.index({ publishDate: -1 });

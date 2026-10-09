@@ -94,3 +94,21 @@ test('unknown role or status is never allowed', () => {
   assert.equal(Article.canTransition('draft', 'pending', undefined), false);
   assert.equal(Article.canTransition('archived', 'pending', 'reporter'), false);
 });
+
+test('isPublic: only an article approved at least once is public', () => {
+  assert.equal(Article.isPublic({ publishDate: new Date() }), true);
+  assert.equal(Article.isPublic({ publishDate: null }), false);
+  assert.equal(Article.isPublic({}), false);
+});
+
+test('hasDraft: only an article with an open draft has one', () => {
+  assert.equal(Article.hasDraft({ draft: { title: 'x' } }), true);
+  assert.equal(Article.hasDraft({ draft: null }), false);
+  assert.equal(Article.hasDraft({}), false);
+});
+
+test('isPublic and hasDraft work on a document too, not only on plain objects', () => {
+  const article = makeArticle({ publishDate: new Date() });
+  assert.equal(Article.isPublic(article), true);
+  assert.equal(Article.hasDraft(article), false);
+});

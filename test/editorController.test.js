@@ -6,10 +6,11 @@ const {
   toListRow,
   missingToPublish,
   buildApprovalUpdate,
-  parseDraftEdit,
+  parseVersionEdit,
   approveArticle,
   returnArticle,
-  editArticle,
+  editDraft,
+  editLive,
   deleteArticle,
 } = require('../controllers/editorController');
 
@@ -133,22 +134,22 @@ test('approving an update keeps the first publish date and records the update', 
   assert.equal($push.publishHistory, now);
 });
 
-test('an edit keeps only known draft fields', () => {
-  const { set } = parseDraftEdit({ title: 'T', status: 'published', author: 'x' });
-  assert.deepEqual(set, { 'draft.title': 'T' });
+test('an edit keeps only known version fields', () => {
+  const { fields } = parseVersionEdit({ title: 'T', status: 'published', author: 'x' });
+  assert.deepEqual(fields, { title: 'T' });
 });
 
 test('an edit rejects a field that is not text (e.g. a Mongo operator)', () => {
-  assert.ok(parseDraftEdit({ title: { $gt: '' } }).error);
+  assert.ok(parseVersionEdit({ title: { $gt: '' } }).error);
 });
 
 test('an edit with nothing to change is rejected', () => {
-  assert.ok(parseDraftEdit({}).error);
-  assert.ok(parseDraftEdit(undefined).error);
+  assert.ok(parseVersionEdit({}).error);
+  assert.ok(parseVersionEdit(undefined).error);
 });
 
 test('every action rejects a malformed id with 400, no database needed', async () => {
-  for (const handler of [approveArticle, returnArticle, editArticle, deleteArticle]) {
+  for (const handler of [approveArticle, returnArticle, editDraft, editLive, deleteArticle]) {
     const res = mockRes();
     await handler({ params: { id: 'not-an-id' }, body: {}, user: editor }, res);
     assert.equal(res.statusCode, 400, handler.name);

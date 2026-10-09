@@ -6,10 +6,10 @@
   const message = document.getElementById('editor-message');
   const apiUrl = '/api/editor/articles/' + page.dataset.articleId;
 
-  const editButton = document.getElementById('edit-button');
+  const editButtons = page.querySelectorAll('[data-edit-form]');
+  const editForms = page.querySelectorAll('.edit-form');
   const approveButton = document.getElementById('approve-button');
   const returnForm = document.getElementById('return-form');
-  const editForm = document.getElementById('edit-form');
   const versions = document.getElementById('versions');
   const deleteButton = document.getElementById('delete-button');
 
@@ -20,7 +20,8 @@
 
   // sends one action, returns true when the server accepted it
   async function send(method, path, body) {
-    const buttons = page.querySelectorAll('button');
+    // only the buttons usable now, so a grayed-out one is not re-enabled afterwards
+    const buttons = page.querySelectorAll('button:not(:disabled)');
     buttons.forEach((button) => {
       button.disabled = true;
     });
@@ -67,26 +68,41 @@
       }
     });
 
-    // editing is its own mode: save or cancel first, so nothing unsaved gets approved or returned
-    const toggleEditing = (editing) => {
-      editForm.hidden = !editing;
-      versions.hidden = editing;
-      editButton.hidden = editing;
+  }
+
+  // editing is its own mode: save or cancel first, so nothing unsaved gets approved or returned.
+  // openForm is the edit form to show, or null to leave editing
+  function toggleEditing(openForm) {
+    const editing = openForm !== null;
+    editForms.forEach((form) => {
+      form.hidden = form !== openForm;
+    });
+    editButtons.forEach((button) => {
+      button.hidden = editing;
+    });
+    versions.hidden = editing;
+    if (approveButton) {
       approveButton.hidden = editing;
       returnForm.hidden = editing;
-    };
+    }
+  }
 
-    editButton.addEventListener('click', () => toggleEditing(true));
-    document.getElementById('edit-cancel').addEventListener('click', () => toggleEditing(false));
+  // a disabled (grayed-out) button gets no clicks, so only usable versions open
+  editButtons.forEach((button) => {
+    button.addEventListener('click', () => toggleEditing(document.getElementById(button.dataset.editForm)));
+  });
 
-    editForm.addEventListener('submit', async (event) => {
+  // each form saves its own version: PATCH .../draft or .../live
+  editForms.forEach((form) => {
+    form.querySelector('.edit-cancel').addEventListener('click', () => toggleEditing(null));
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const fields = Object.fromEntries(new FormData(editForm));
-      if (await send('PATCH', '', fields)) {
+      const fields = Object.fromEntries(new FormData(form));
+      if (await send('PATCH', '/' + form.dataset.target, fields)) {
         location.reload();
       }
     });
-  }
+  });
 
   deleteButton.addEventListener('click', async () => {
     if (!confirm('Delete this article and its comments? This cannot be undone.')) {

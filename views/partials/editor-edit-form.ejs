@@ -1,0 +1,23 @@
+<%# edit form for one version of an article on the editor's review page. target is "draft" or "live" %>
+<form class="edit-form" id="edit-<%= target %>-form" data-target="<%= target %>" hidden>
+  <h2><%= heading %></h2>
+  <% notes.forEach((note) => { %>
+    <p class="edit-form-note"><%= note %></p>
+  <% }); %>
+  <label>Title <input name="title" value="<%= version.title %>" maxlength="200" required></label>
+  <label>Summary <textarea name="summary" rows="2" maxlength="500"><%= version.summary %></textarea></label>
+  <label>Image URL <input name="image" type="url" value="<%= version.image %>"></label>
+  <label>
+    Category
+    <select name="category">
+      <% categories.forEach((category) => { %>
+        <option value="<%= category %>" <%= version.category === category ? 'selected' : '' %>><%= category %></option>
+      <% }); %>
+    </select>
+  </label>
+  <label>Content <textarea name="content" rows="12"><%= version.content %></textarea></label>
+  <div class="editor-actions">
+    <button type="submit" class="primary"><%= saveLabel %></button>
+    <button type="button" class="edit-cancel">Cancel</button>
+  </div>
+</form>

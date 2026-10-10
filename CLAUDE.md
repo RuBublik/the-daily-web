@@ -59,7 +59,7 @@ Every model needs full CRUD (Create, Read/List/Search, Update, Delete), and sear
 
 - **Guest**: can only reach public areas — home feed and article pages, can post comments (rate-limited).
 - **Reporter**: logs in, lands in their own workspace. Can create articles and edit only their own articles. **Cannot publish** — can only submit for editor approval.
-- **Editor**: logs in, lands in the admin area. Can view/edit any article, approve and publish, return an article to the reporter for revision (with an explanatory note), and delete articles as needed.
+- **Editor**: logs in, lands in the editor area. Can view/edit any article, approve and publish, return an article to the reporter for revision (with an explanatory note), and delete articles as needed.
 - Permission checks must happen **server-side**, based on the authenticated identity — never trust client-side hiding of buttons/screens, and never derive role from anything the browser could tamper with.
 - Sessions must survive a server restart — a logged-in user should not be forced to log in again just because the server restarted.
 

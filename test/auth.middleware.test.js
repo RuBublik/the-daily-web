@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { devUser, requireAuth, requireRole, DEV_USERS } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+
+const reporter = { username: 'reporter', role: 'reporter' };
+const editor = { username: 'editor', role: 'editor' };
 
 function mockRes() {
   return {
@@ -32,7 +35,7 @@ const apiReq = (user) => ({ originalUrl: '/api/editor/articles', user });
 const pageReq = (user) => ({ originalUrl: '/editor', user });
 
 test('requireAuth lets a logged-in user through', () => {
-  const { nextArg } = run(requireAuth, apiReq(DEV_USERS.reporter));
+  const { nextArg } = run(requireAuth, apiReq(reporter));
   assert.equal(nextArg, undefined);
 });
 
@@ -49,49 +52,16 @@ test('requireAuth sends a page request without a user to the 401 error page', ()
 });
 
 test('requireRole lets the right role through', () => {
-  const { nextArg } = run(requireRole('editor'), apiReq(DEV_USERS.editor));
+  const { nextArg } = run(requireRole('editor'), apiReq(editor));
   assert.equal(nextArg, undefined);
 });
 
 test('requireRole answers 403 to the wrong role', () => {
-  const { res } = run(requireRole('editor'), apiReq(DEV_USERS.reporter));
+  const { res } = run(requireRole('editor'), apiReq(reporter));
   assert.equal(res.statusCode, 403);
 });
 
 test('requireRole answers 401 when nobody is logged in', () => {
   const { res } = run(requireRole('editor'), apiReq(undefined));
   assert.equal(res.statusCode, 401);
-});
-
-test('devUser logs in as DEV_AS outside production', (t) => {
-  t.after(() => {
-    delete process.env.DEV_AS;
-  });
-  process.env.DEV_AS = 'editor';
-  const req = {};
-  run(devUser, req);
-  assert.equal(req.user.role, 'editor');
-});
-
-test('devUser does nothing in production', (t) => {
-  const oldEnv = process.env.NODE_ENV;
-  t.after(() => {
-    delete process.env.DEV_AS;
-    process.env.NODE_ENV = oldEnv;
-  });
-  process.env.DEV_AS = 'editor';
-  process.env.NODE_ENV = 'production';
-  const req = {};
-  run(devUser, req);
-  assert.equal(req.user, undefined);
-});
-
-test('devUser ignores an unknown DEV_AS value', (t) => {
-  t.after(() => {
-    delete process.env.DEV_AS;
-  });
-  process.env.DEV_AS = 'admin';
-  const req = {};
-  run(devUser, req);
-  assert.equal(req.user, undefined);
 });

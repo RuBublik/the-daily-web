@@ -1,24 +1,7 @@
-// Temporary stand-in for the real login (#26), so Part 4 can build protected routes now.
-// Routes use only requireAuth and requireRole. When #26 merges, this file re-exports
-// its middleware instead, and devUser is deleted.
+// Role checks for protected routes. The logged-in user (req.user) is set from the login cookie
+// in app.js; routes only use requireAuth and requireRole.
 
 const createError = require('http-errors');
-
-// fixed ids, so articles created as the dev user still belong to them after a restart
-const DEV_USERS = {
-  reporter: { _id: '000000000000000000000001', username: 'dev-reporter', role: 'reporter' },
-  editor: { _id: '000000000000000000000002', username: 'dev-editor', role: 'editor' },
-};
-
-// DEV_AS=reporter|editor in .env logs every request in as that user. Never in production.
-function devUser(req, res, next) {
-  const role = process.env.DEV_AS;
-  if (process.env.NODE_ENV !== 'production' && DEV_USERS[role]) {
-    req.user = DEV_USERS[role];
-    res.locals.user = req.user;
-  }
-  next();
-}
 
 // API calls get JSON, pages get the error page
 function deny(req, res, next, status, message) {
@@ -47,4 +30,4 @@ function requireRole(role) {
   };
 }
 
-module.exports = { devUser, requireAuth, requireRole, DEV_USERS };
+module.exports = { requireAuth, requireRole };

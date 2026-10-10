@@ -1,0 +1,55 @@
+const jwt = require('jsonwebtoken');
+const { User } = require('../models/user');
+
+const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
+
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
+  return secret;
+}
+
+function tokenFromRequest(req) {
+  const authHeader = req.headers.authorization || req.get?.('authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+  if (req.cookies && req.cookies[COOKIE_NAME]) {
+    return req.cookies[COOKIE_NAME];
+  }
+  return null;
+}
+
+async function resolveUser(req) {
+  const token = tokenFromRequest(req);
+  if (!token) return null;
+
+  const decoded = jwt.verify(token, getJwtSecret());
+  const userId = decoded.id || decoded.sub;
+  if (!userId) return null;
+
+  const user = await User.findById(userId);
+  return user || null;
+}
+
+async function authenticateJwt(req, res, next) {
+  try {
+    const user = await resolveUser(req);
+    if (!user) {
+      return res.status(401).json({ message: 'You do not have permission to perform this action' });
+    }
+    req.user = user;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token' });
+  }
+}
+
+module.exports = {
+  getJwtSecret,
+  tokenFromRequest,
+  resolveUser,
+  authenticateJwt
+};

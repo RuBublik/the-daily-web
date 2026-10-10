@@ -1,13 +1,320 @@
+/*
+  The Daily Web stylesheet.
+  Written desktop-first: the rules below describe the wide layout,
+  and the "Responsive" section at the end adjusts it for tablet
+  (max-width: 1024px) and mobile (max-width: 600px).
+*/
+
+/* ---------- Base ---------- */
+
+/* padding and border are counted inside an element's width */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 32px 16px;
   background: #f4f5f7;
   color: #1f2328;
   font: 15px/1.5 "Lucida Grande", Helvetica, Arial, sans-serif;
+  overflow-wrap: break-word; /* a very long word wraps instead of causing sideways scrolling */
 }
 
 a {
   color: #0b74de;
+}
+
+/* ---------- Layout ---------- */
+
+/* the main content is centered and never wider than 1200px */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* main column on the left, sidebar on the right */
+.layout-grid {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.articles-feed {
+  flex: 1;
+  min-width: 0; /* lets the feed shrink instead of pushing the sidebar off screen */
+}
+
+.sidebar {
+  flex: 0 0 260px;
+}
+
+/* ---------- Site header and footer ---------- */
+
+/* "body > header" is the site header, not the header inside an article */
+body > header {
+  display: flex;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto 1.5rem;
+  padding: 12px 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body > header a {
+  color: #1f2328;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+body > footer {
+  max-width: 1200px;
+  margin: 2rem auto 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+body > footer p {
+  margin: 0;
+}
+
+/* ---------- Home feed: filters ---------- */
+
+.section-title {
+  margin: 0 0 1rem;
+}
+
+/* the form controls sit in one row and wrap to a new line when needed */
+.feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* each label shows its text above its control */
+.feed-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* the first label holds the search box, it takes the remaining width */
+.feed-filters label:first-child {
+  flex: 1 1 200px;
+}
+
+.feed-filters input,
+.feed-filters select,
+.feed-filters button {
+  min-height: 40px; /* comfortable tap target */
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.feed-filters button {
+  padding: 8px 20px;
+  background: #0b74de;
+  color: #fff;
+  border-color: #0b74de;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feed-filters button:hover {
+  background: #095db3;
+}
+
+/* ---------- Home feed: article grid ---------- */
+
+/* a wrapping flex row of cards, 3 per row on desktop */
+.articles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+/*
+  Each card is one third of the row minus its share of the two gaps.
+  flex-grow is 0, so a last row with fewer cards keeps the same card width.
+*/
+.article-card {
+  flex: 0 0 calc((100% - 2 * 1.5rem) / 3);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.article-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* positioned so the category badge can sit on top of the image */
+.card-image-wrapper {
+  position: relative;
+}
+
+/* a fixed 3:2 box, so the page does not jump while lazy images load */
+.card-image-wrapper img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+/* dark label used for the category on cards and on the article page */
+.category-badge,
+.article-category {
+  background-color: rgba(15, 23, 42, 0.85);
+  color: #38bdf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+}
+
+/* on a card the badge is placed over the top left corner of the image */
+.category-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+/* the summary grows, so the meta line sits at the bottom of every card */
+.card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+}
+
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-title a:hover {
+  color: #0284c7;
+}
+
+.card-summary {
+  flex: 1;
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* author, date and views; wraps to two lines on narrow cards */
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+/* ---------- Home feed: status line ---------- */
+
+.feed-status {
+  text-align: center;
+  color: #64748b;
+}
+
+/* ---------- Article page ---------- */
+
+.article-column {
+  flex: 1;
+  min-width: 0;
+  max-width: 720px; /* a readable line length for the article text */
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.article-page {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.article-header h1 {
+  margin: 0.5rem 0;
+  font-size: 2rem;
+  line-height: 1.25;
+}
+
+/* the category label sits in the text flow (shared colors are above) */
+.article-category {
+  display: inline-block;
+}
+
+.article-meta {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* the image fills the column width and keeps its proportions */
+.article-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.article-body p {
+  font-size: 1.05rem;
+  line-height: 1.75;
+  margin: 1rem 0;
+}
+
+/* ---------- Sidebar and weather widget ---------- */
+
+.weather-widget {
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.weather-widget h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.weather-widget p {
+  margin: 0;
+  color: #64748b;
 }
 
 /* ---------- Comments widget ---------- */
@@ -20,6 +327,12 @@ a {
   border: 1px solid #e3e5e8;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* on the article page the comments line up with the article column */
+.article-column .comments {
+  max-width: none;
+  margin: 1.5rem 0 0;
 }
 
 .comments h2 {
@@ -108,6 +421,55 @@ a {
   background: #095db3;
 }
 
+/* ---------- Responsive ---------- */
+
+/* Tablet: 2 cards per row, the sidebar moves under the main column */
+@media (max-width: 1024px) {
+  .layout-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* in a column the old 260px basis would become a height, so reset it */
+  .sidebar {
+    flex: none;
+  }
+
+  .article-card {
+    flex-basis: calc((100% - 1.5rem) / 2);
+  }
+}
+
+/* Mobile: one column, 1 card per row, filter controls stacked */
+@media (max-width: 600px) {
+  body {
+    padding: 16px 12px;
+  }
+
+  .articles-grid {
+    gap: 1rem;
+  }
+
+  .article-card {
+    flex-basis: 100%;
+  }
+
+  /* every filter control gets its own full width line */
+  .feed-filters label,
+  .feed-filters button {
+    width: 100%;
+  }
+
+  .article-page {
+    padding: 1rem;
+  }
+
+  .article-header h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Small phones: the comments box drops its rounded corners and the button is full width */
 @media (max-width: 480px) {
   .comments {
     padding: 16px;
@@ -118,80 +480,223 @@ a {
     align-self: stretch;
   }
 }
-.articles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1.5rem;
-}
-.article-card {
+
+/* ---------- Login bar and login page ---------- */
+
+.top-auth-navbar {
   background: #ffffff;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  padding: 10px 32px;
 }
 
-.article-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
-}
-
-.card-image-wrapper {
-  position: relative;
-  height: 160px;
-}
-.card-image-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.category-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background-color: rgba(15, 23, 42, 0.85);
-  color: #38bdf8;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-}
-
-.card-content {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.card-title {
-  font-size: 1.3rem;
-}
-
-.card-title a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.card-title a:hover {
-  color: #0284c7;
-}
-
-.card-summary {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 1.25rem;
-  flex: 1;
-}
-
-.card-meta {
-  color: #94a3b8;
+.auth-bar-content {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.role-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.role-pill.editor { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.role-pill.user { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+.guest-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost {
+  color: #475569;
+  background-color: #f1f5f9;
+}
+.btn-ghost:hover { background-color: #e2e8f0; }
+
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.btn-primary-gradient:hover { opacity: 0.95; transform: translateY(-1px); }
+
+.btn-logout-sleek {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-logout-sleek:hover { background: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 75vh;
+  direction: ltr;
+  padding: 20px;
+}
+
+.auth-card {
+  background: #ffffff;
+  padding: 36px 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid #f1f5f9;
+  text-align: left;
+}
+
+.auth-card h2 {
+  margin-bottom: 24px;
+  color: #0f172a;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+}
+
+.form-group input, .form-group select {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  direction: ltr;
+  text-align: left;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn-submit:hover { background: #1d4ed8; }
+
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.auth-switch a { color: #2563eb; font-weight: 600; text-decoration: none; }
+
+.alert-error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+  border: 1px solid #fecaca;
+  text-align: left;
+}
+
+.back-home-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #6c757d;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.back-home-link:hover {
+  color: #007bff;
+  text-decoration: underline;
+
   border-top: 1px solid #f1f5f9;
   padding-top: 0.75rem;
 }

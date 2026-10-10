@@ -109,4 +109,35 @@ Actions on the review page (`public/js/editorArticle.js`). Approve and return ap
 
 Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
 
-**Until the real login is merged:** set `DEV_AS=editor` in `.env` and restart the server to browse the editor area as a development editor (ignored when `NODE_ENV=production`).
+To try it, log in at `/auth/login` as an editor user (created by `npm run seed`).
+
+## Database Schema
+
+### Users Table
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `username` | String | Unique user name |
+| `password` | String | Hashed password |
+| `role` | Enum | User role: `editor` or `reporter` |
+| `created_at` | Timestamp | Account creation date |
+
+## Database Seeding
+
+To seed the database with initial sample data (e.g., test editors and reporters), run:
+
+```bash
+npm run seed
+
+## Authentication & Authorization
+
+### Roles & Access Control
+* **`reporter`**: Default role for standard users.
+* **`editor`**: Advanced user role with administrative/editing privileges.
+
+### Environment Variables
+Ensure the following keys are defined in your `.env` file:
+
+```env
+JWT_SECRET=your_jwt_secret_key
+editor_SIGNUP_CODE=your_optional_editor_registration_code
+COOKIE_NAME=token

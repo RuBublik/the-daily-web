@@ -29,7 +29,7 @@ function mockRes() {
   };
 }
 
-const editor = { username: 'dev-editor', role: 'editor' };
+const editor = { username: 'editor', role: 'editor' };
 const validId = () => new mongoose.Types.ObjectId().toString();
 const fullDraft = { title: 'New title', summary: 'New summary', image: '', category: 'Sports', content: 'New body' };
 

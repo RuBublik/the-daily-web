@@ -1,17 +1,17 @@
 <article class="article-card">
   <div class="card-image-wrapper">
-    <img src="<%= article.image %>" alt="Article thumbnail" title="<%= article.title %>">
+    <img src="<%= article.image %>" alt="<%= article.title %>" loading="lazy">
     <span class="category-badge"><%= article.category %></span>
   </div>
   <div class="card-content">
     <h3 class="card-title">
-      <a href="/article/<%= article.id %>"><%= article.title %></a>
+      <a href="/article/<%= article._id %>"><%= article.title %></a>
     </h3>
     <p class="card-summary"><%= article.summary %></p>
     <div class="card-meta">
-      <span>By <%= article.author %></span>
-      <span><%= article.publishedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
-      <span><%= article.views %></span>
+      <span>By <%= article.authorName %></span>
+      <time datetime="<%= article.publishDate.toISOString() %>"><%= article.publishDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></time>
+      <span><%= article.viewCount %> views</span>
     </div>
   </div>
 </article>

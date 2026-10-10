@@ -13,7 +13,7 @@
 
     <div class="impact-ranges" role="group" aria-label="Time range">
       <% ranges.forEach((range) => { %>
-        <button type="button" data-range="<%= range %>" aria-pressed="<%= range === defaultRange %>"><%= range %></button>
+        <button type="button" data-range="<%= range %>" aria-pressed="<%= range === defaultRange %>"><%= rangeLabels[range] %></button>
       <% }); %>
     </div>
 

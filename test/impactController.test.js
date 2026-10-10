@@ -24,18 +24,20 @@ function mockRes() {
 // a series of `hours` hourly points starting at `startIso`, every hour with `count` views
 function flatSeries(startIso, hours, count) {
   const start = at(startIso).getTime();
-  return Array.from({ length: hours }, (_, i) => ({ hour: new Date(start + i * HOUR), count }));
+  return Array.from({ length: hours }, (_, i) => ({ time: new Date(start + i * HOUR), count }));
 }
 
-test('range defaults to 7d and accepts 24h, 7d and 30d', () => {
+test('range defaults to 7d and accepts 24h, 7d, 30d and all', () => {
   assert.equal(parseRange(undefined).range, '7d');
-  for (const range of ['24h', '7d', '30d']) {
+  for (const range of ['24h', '7d', '30d', 'all']) {
     assert.equal(parseRange(range).range, range);
   }
 });
 
 test('an unknown or repeated range is rejected', () => {
   assert.ok(parseRange('1y').error);
+  assert.ok(parseRange('1h').error);
+  assert.ok(parseRange('toString').error);
   assert.ok(parseRange(['7d', '24h']).error);
 });
 
@@ -46,7 +48,7 @@ test('hourlySeries fills the hours nobody viewed with 0', () => {
   ];
   const series = hourlySeries(buckets, at('2026-10-10T10:00:00Z'), at('2026-10-10T13:00:00Z'));
   assert.deepEqual(series.map((p) => p.count), [5, 0, 2, 0]);
-  assert.equal(series[3].hour.toISOString(), '2026-10-10T13:00:00.000Z');
+  assert.equal(series[3].time.toISOString(), '2026-10-10T13:00:00.000Z');
 });
 
 test('the first publish has no before and no change', () => {

@@ -55,12 +55,12 @@
 
   function drawChart(data) {
     const withDay = data.range !== '24h';
-    const labels = data.buckets.map((point) => formatHour(new Date(point.hour), withDay));
-    const counts = data.buckets.map((point) => point.count);
-    const firstHour = new Date(data.buckets[0].hour).getTime();
-    // each approval sits on the hour bucket it happened in
+    const labels = data.points.map((point) => formatHour(new Date(point.time), withDay));
+    const counts = data.points.map((point) => point.count);
+    const firstTime = new Date(data.points[0].time).getTime();
+    // each approval sits on the hour point it happened in
     const markers = data.updates.map((update) => ({
-      index: Math.floor((new Date(update.at).getTime() - firstHour) / HOUR_MS),
+      index: Math.floor((new Date(update.at).getTime() - firstTime) / HOUR_MS),
       label: updateLabel(update),
     }));
 
@@ -151,7 +151,8 @@
       chartBox.hidden = false;
       drawChart(data);
       fillTable(data.updates);
-      message.textContent = data.totalViews + ' views in the last ' + data.range +
+      const period = data.range === 'all' ? ' since it was first published' : ' in the last ' + data.range;
+      message.textContent = data.totalViews + ' views' + period +
         (data.updates.length === 0 ? ', no approvals in this range.' : '.');
       // keep the choice in the address bar, so a refresh or a shared link shows the same chart
       history.replaceState(null, '', '/impact?article=' + articleId + '&range=' + range);

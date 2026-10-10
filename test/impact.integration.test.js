@@ -62,7 +62,7 @@ test('stats return every hour of the range and a before / after per approval', {
   await getStats({ params: { id: article._id.toString() }, query: { range: '7d' } }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.buckets.length, 7 * 24);
+  assert.equal(res.body.points.length, 7 * 24);
   assert.equal(res.body.updates.length, 2);
   assert.equal(res.body.updates[0].first, true);
   assert.equal(res.body.updates[1].before, 2);
@@ -73,14 +73,46 @@ test('stats return every hour of the range and a before / after per approval', {
   // in the 24h range both approvals are outside: no markers
   const res24 = mockRes();
   await getStats({ params: { id: article._id.toString() }, query: { range: '24h' } }, res24);
-  assert.equal(res24.body.buckets.length, 24);
+  assert.equal(res24.body.points.length, 24);
   assert.equal(res24.body.updates.length, 0);
+
+  // all time starts at the first publish (72 hours ago), still hourly, both approvals marked
+  const resAll = mockRes();
+  await getStats({ params: { id: article._id.toString() }, query: { range: 'all' } }, resAll);
+  assert.equal(resAll.body.points.length, 73);
+  assert.equal(resAll.body.updates.length, 2);
+  assert.equal(resAll.body.totalViews, buckets.reduce((sum, b) => sum + b.count, 0));
 });
 
-test('stats of an unknown article are 404', { skip }, async (t) => {
+test('all time of an old article is still one point per hour', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
-  t.after(() => mongoose.disconnect());
+  t.after(async () => {
+    const ids = (await Article.find({ authorName: TEST_AUTHOR }).select('_id').lean()).map((a) => a._id);
+    await ViewStat.deleteMany({ article: { $in: ids } });
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const nowHour = ViewStat.startOfHour(new Date()).getTime();
+  const firstPublish = new Date(nowHour - 40 * 24 * HOUR);
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: TEST_AUTHOR,
+    title: 'Old article',
+    summary: 'Summary',
+    category: 'News',
+    content: 'Body',
+    status: 'published',
+    publishDate: firstPublish,
+    publishHistory: [firstPublish],
+  });
+  await ViewStat.insertMany([
+    { article: article._id, hour: firstPublish, count: 7 },
+    { article: article._id, hour: new Date(nowHour), count: 3 },
+  ]);
+
   const res = mockRes();
-  await getStats({ params: { id: new mongoose.Types.ObjectId().toString() }, query: {} }, res);
-  assert.equal(res.statusCode, 404);
+  await getStats({ params: { id: article._id.toString() }, query: { range: 'all' } }, res);
+  assert.equal(res.body.points.length, 40 * 24 + 1);
+  assert.equal(res.body.totalViews, 10);
 });

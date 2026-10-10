@@ -6,8 +6,9 @@ const Article = require('../models/Article');
 const ViewStat = require('../models/ViewStat');
 
 const HOUR_MS = 60 * 60 * 1000;
-// how far back each range button looks, in hours
-const RANGES = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24 };
+// how far back each range button looks, in hours ("all" = since the first publish)
+const RANGES = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24, all: null };
+const RANGE_LABELS = { '24h': '24h', '7d': '7d', '30d': '30d', all: 'All time' };
 const DEFAULT_RANGE = '7d';
 // before / after an approval are compared over this many hours each
 const COMPARE_HOURS = 24;
@@ -16,7 +17,7 @@ function parseRange(range) {
   if (range === undefined) {
     return { range: DEFAULT_RANGE };
   }
-  if (typeof range !== 'string' || !RANGES[range]) {
+  if (typeof range !== 'string' || !Object.hasOwn(RANGES, range)) {
     return { error: `range must be one of: ${Object.keys(RANGES).join(', ')}` };
   }
   return { range };
@@ -27,7 +28,7 @@ function hourlySeries(buckets, from, to) {
   const counts = new Map(buckets.map((bucket) => [bucket.hour.getTime(), bucket.count]));
   const series = [];
   for (let t = from.getTime(); t <= to.getTime(); t += HOUR_MS) {
-    series.push({ hour: new Date(t), count: counts.get(t) || 0 });
+    series.push({ time: new Date(t), count: counts.get(t) || 0 });
   }
   return series;
 }
@@ -41,14 +42,15 @@ function average(series) {
 }
 
 // for every approval: average views per hour in the 24 hours before and after it, and the change.
-// the hour the approval happened in counts as "after". `series` must cover all the hours needed.
-function summarizeUpdates(approvals, series, now, firstPublish) {
+// the hour the approval happened in counts as "after". `hourly` must cover all the hours needed.
+// `firstPublish` tells which approval was the first publish (it may be outside `approvals`)
+function summarizeUpdates(approvals, hourly, now, firstPublish) {
   const nowHour = ViewStat.startOfHour(now).getTime();
 
   return approvals.map((at) => {
     const approvalHour = ViewStat.startOfHour(at).getTime();
     const afterEnd = Math.min(approvalHour + COMPARE_HOURS * HOUR_MS, nowHour + HOUR_MS);
-    const after = average(series.filter((p) => p.hour >= approvalHour && p.hour < afterEnd));
+    const after = average(hourly.filter((p) => p.time >= approvalHour && p.time < afterEnd));
     // fewer than 24 hours have passed since this approval
     const soFar = afterEnd - approvalHour < COMPARE_HOURS * HOUR_MS;
 
@@ -58,14 +60,14 @@ function summarizeUpdates(approvals, series, now, firstPublish) {
     }
 
     const beforeStart = approvalHour - COMPARE_HOURS * HOUR_MS;
-    const before = average(series.filter((p) => p.hour >= beforeStart && p.hour < approvalHour));
+    const before = average(hourly.filter((p) => p.time >= beforeStart && p.time < approvalHour));
     // a change in percent means nothing when there were no views before
     const change = before > 0 ? Math.round(((after - before) / before) * 100) : null;
     return { at, first: false, before, after, change, soFar };
   });
 }
 
-// GET /api/articles/:id/stats?range=24h|7d|30d (editor only)
+// GET /api/articles/:id/stats?range=24h|7d|30d|all (editor only)
 async function getStats(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -83,8 +85,15 @@ async function getStats(req, res) {
     }
 
     const now = new Date();
-    const to = ViewStat.startOfHour(now);
-    const from = new Date(to.getTime() - (RANGES[range] - 1) * HOUR_MS);
+    const nowHour = ViewStat.startOfHour(now);
+    const firstPublish = article.publishHistory[0] || null;
+    // the hour the range starts at; "all" starts at the first publish
+    let from;
+    if (range === 'all') {
+      from = firstPublish ? ViewStat.startOfHour(firstPublish) : nowHour;
+    } else {
+      from = new Date(nowHour.getTime() - (RANGES[range] - 1) * HOUR_MS);
+    }
     // markers outside the range can't be drawn, so only these approvals are summarized
     const approvals = article.publishHistory.filter((at) => at >= from);
 
@@ -92,13 +101,12 @@ async function getStats(req, res) {
     const queryFrom = approvals.length > 0
       ? new Date(Math.min(from.getTime(), ViewStat.startOfHour(approvals[0]).getTime() - COMPARE_HOURS * HOUR_MS))
       : from;
-    const buckets = await ViewStat.find({ article: id, hour: { $gte: queryFrom, $lte: to } })
+    const buckets = await ViewStat.find({ article: id, hour: { $gte: queryFrom, $lte: nowHour } })
       .select('hour count')
       .lean();
-    const fullSeries = hourlySeries(buckets, queryFrom, to);
-    const updates = approvals.length > 0
-      ? summarizeUpdates(approvals, fullSeries, now, article.publishHistory[0])
-      : [];
+    const hourly = hourlySeries(buckets, queryFrom, nowHour);
+
+    const updates = approvals.length > 0 ? summarizeUpdates(approvals, hourly, now, firstPublish) : [];
     // the approval's place in the whole history (0 = first publish, then update 1, 2, ...),
     // so the labels stay right when earlier approvals are outside the range
     const skipped = article.publishHistory.length - approvals.length;
@@ -106,12 +114,14 @@ async function getStats(req, res) {
       update.number = skipped + index;
     });
 
-    const series = fullSeries.filter((point) => point.hour >= from);
+    // the chart: one point per hour of the range
+    const points = hourly.filter((point) => point.time >= from);
+
     res.json({
       article: { _id: article._id, title: article.title || article.draft?.title || '(untitled)' },
       range,
-      totalViews: series.reduce((sum, point) => sum + point.count, 0),
-      buckets: series,
+      totalViews: points.reduce((sum, point) => sum + point.count, 0),
+      points,
       updates,
     });
   } catch (err) {
@@ -135,6 +145,7 @@ async function showImpact(req, res, next) {
       title: 'Impact Analytics - The Daily Web',
       selected,
       ranges: Object.keys(RANGES),
+      rangeLabels: RANGE_LABELS,
       defaultRange: DEFAULT_RANGE,
     });
   } catch (err) {

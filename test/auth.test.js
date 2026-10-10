@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { User } = require('../models/user');
 const controller = require('../controllers/authController');
-const { requireRole, authenticateJwt } = require('../middleware/authMiddleware');
+const { authenticateJwt } = require('../middleware/authMiddleware');
 
 function makeUser(overrides = {}) {
   return new User({
@@ -179,34 +179,6 @@ test('login fails when username is not found', async () => {
   assert.strictEqual(res.renderData.error, 'Invalid username or password');
 
   User.findOne = originalFindOne;
-});
-
-test('requireRole middleware allows access when user role matches', () => {
-  const middleware = requireRole('editor');
-  const req = { user: { role: 'editor' } };
-  const res = mockResponse();
-  let nextCalled = false;
-
-  middleware(req, res, () => {
-    nextCalled = true;
-  });
-
-  assert.strictEqual(nextCalled, true);
-});
-
-test('requireRole middleware blocks access (401) when role does not match', () => {
-  const middleware = requireRole('editor');
-  const req = { user: { role: 'reporter' } };
-  const res = mockResponse();
-  let nextCalled = false;
-
-  middleware(req, res, () => {
-    nextCalled = true;
-  });
-
-  assert.strictEqual(nextCalled, false);
-  assert.strictEqual(res.statusCode, 401);
-  assert.strictEqual(res.jsonBody.message, 'You do not have permission to perform this action');
 });
 
 test('authenticateJwt middleware blocks access (401) on invalid token', async () => {

@@ -37,7 +37,8 @@ const articles = [
 function showHome(req, res) {
   res.render('index', {
     title: 'The Daily Web',
-    articles: articles
+    articles: articles,
+    user: req.user
   });
 }
 

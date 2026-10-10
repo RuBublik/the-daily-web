@@ -18,6 +18,8 @@ const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
 const articlesRouter = require('./routes/articles');
 const devTestRouter = require('./routes/devTest');
+const editorRouter = require('./routes/editor');
+const editorApiRouter = require('./routes/editorApi');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -69,6 +71,8 @@ app.use('/impact', requireRole('editor'), impactRouter);
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/dev', devTestRouter);
+app.use('/editor', requireRole('editor'), editorRouter);
+app.use('/api/editor', requireRole('editor'), editorApiRouter);
 app.use('/auth', authRoutes);
 
 app.use(function(req, res, next) {

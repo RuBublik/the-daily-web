@@ -54,7 +54,7 @@ Then open http://localhost:PORT — the port comes from `PORT` in `.env`.
 npm test
 ```
 
-Runs on Node's built-in test runner (`node --test`), no extra dependencies. Most tests are pure (model validation, request validation including the home feed query, rate-limit boundary) and always run; the one live rate-limit test that needs a real database skips itself automatically unless `MONGO_URI` is set.
+Runs on Node's built-in test runner (`node --test`), no extra dependencies. Most tests are pure (model validation, request validation including the home feed query, rate-limit boundary) and always run; the live tests that need a real database (comment rate limit, editor approve/return flow) skip themselves automatically unless `MONGO_URI` is set, e.g. `MONGO_URI=mongodb://127.0.0.1:27017/the-daily-web npm test`.
 
 ## Project structure
 
@@ -65,8 +65,8 @@ the-daily-web/
 ├── setup.sh          # one-command development setup
 ├── .env.example      # template for .env (copy, then fill in)
 ├── config/           # db.js (Mongoose connection), categories.js (article categories)
-├── controllers/      # request logic (e.g. homeController.js, articleController.js, commentController.js)
-├── middleware/       # request helpers (e.g. viewedArticles.js)
+├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, commentController.js)
+├── middleware/       # auth.js (requireAuth / requireRole), viewedArticles.js (viewed-articles cookie)
 ├── models/           # Mongoose schemas (e.g. Article.js, Comment.js)
 ├── routes/           # URL → controller mapping
 ├── views/            # EJS templates, rendered on the server
@@ -125,6 +125,27 @@ Every article page includes a comments section (list + add-comment form) that up
 - Comment text is rendered client-side with `textContent` (never `innerHTML`) to prevent XSS.
 
 The comments section now appears on every article page. The widget can still be previewed on its own at `/dev/comments-test`, a temporary route that is planned for removal.
+
+### Editor area
+
+Only for users with the `editor` role. Every page and API route is mounted behind `requireRole('editor')` (`middleware/auth.js`), so the check happens on the server for every request. A reporter gets `403`, a guest `401`.
+
+- `GET /editor`: all articles, newest change first. Shows the ones waiting for review (`pending`) by default, with a status filter and a title search. The first page is rendered on the server. Filtering, searching and "Load more" use Ajax (`public/js/editor.js`, `GET /api/editor/articles?status=&q=&page=`).
+- `GET /editor/articles/:id`: the review page. Shows the submitted version, and for an update to a published article the live version next to it, so the editor sees what readers see now and what would replace it.
+
+Actions on the review page (`public/js/editorArticle.js`). Approve and return appear only on a pending article:
+
+- **Approve and publish** (`POST /api/editor/articles/:id/approve`): the draft becomes the live version. The first approval sets `publishDate`, and every approval is added to `publishHistory`, which the Impact chart uses to mark updates.
+- **Return for revision** (`POST /api/editor/articles/:id/return`, `{ note }`): a note explaining what to fix is required. The draft stays for the reporter, and a published article stays public with its last approved version.
+- **Edit draft** (`PATCH /api/editor/articles/:id/draft`): edits the version being worked on or waiting for approval, in any status that has one. The status does not change.
+- **Edit live** (`PATCH /api/editor/articles/:id/live`): edits the version readers see now, on a published article. The editor is the one who approves, so the change is published immediately and added to `publishHistory` like an approval. A live article can't lose its title, summary, category or content.
+
+  The editor can edit any article this way. Both buttons are always shown; one that doesn't apply (no draft, or never published) is grayed out with the reason as its tooltip, and the server rejects the same cases with `400`. Only the version fields (title, summary, image, category, content) are accepted.
+- **Delete** (`DELETE /api/editor/articles/:id`, any status): removes the article and its comments.
+
+Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
+
+To try it, log in at `/auth/login` as an editor user (created by `npm run seed`).
 
 ## Database Schema
 

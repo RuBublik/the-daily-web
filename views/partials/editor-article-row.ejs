@@ -1,0 +1,15 @@
+<%# one row of the editor's article list. public/js/editor.js builds the same markup %>
+<tr>
+  <td><a href="/editor/articles/<%= article._id %>"><%= article.title %></a></td>
+  <td><%= article.authorName %></td>
+  <td><%= article.category %></td>
+  <td>
+    <span class="status-pill <%= article.status %>"><%= article.status %></span>
+    <% if (article.isUpdate) { %><span class="update-badge">update</span><% } %>
+  </td>
+  <td>
+    <time datetime="<%= article.lastUpdated.toISOString() %>">
+      <%= article.lastUpdated.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+    </time>
+  </td>
+</tr>

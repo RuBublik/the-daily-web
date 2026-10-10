@@ -9,6 +9,19 @@
   </head>
   <body>
     <header>
-      <a href="/">The Daily Web</a>
+      <div class="site-header-top">
+        <a class="site-title" href="/">The Daily Web</a>
+        <%- include('auth-bar') %>
+      </div>
+      <%# tabs to the areas of the logged-in user; the server checks access again on every request %>
+      <% if (locals.user) { %>
+        <% const path = locals.currentPath || ''; %>
+        <nav class="site-tabs" aria-label="Sections">
+          <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
+          <% if (user.role === 'editor') { %>
+            <a href="/editor" class="<%= path.startsWith('/editor') ? 'active' : '' %>">Editor area</a>
+          <% } %>
+        </nav>
+      <% } %>
     </header>
     <main class="container">

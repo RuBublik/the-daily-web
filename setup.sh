@@ -5,7 +5,7 @@
 #   ./setup.sh          install dependencies and create .env
 #   ./setup.sh --help   show this message
 #
-# Safe to re-run. Never overwrites an existing .env.
+# Safe to re-run. Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
 
 set -euo pipefail
 
@@ -56,6 +56,16 @@ else
   [ -f .env.example ] || die ".env.example is missing, .env cannot be created."
   cp .env.example .env
   ok ".env created from .env.example"
+fi
+
+# Generate JWT_SECRET (signs the login cookie) 
+# only when there is none yet, an existing one is never replaced. Changing it would log everyone out.
+if ! grep -Eq '^JWT_SECRET=.+' .env || grep -q '^JWT_SECRET=your_jwt_secret_here$' .env; then
+  secret=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+  grep -v '^JWT_SECRET=' .env > .env.tmp || true
+  echo "JWT_SECRET=$secret" >> .env.tmp
+  mv .env.tmp .env
+  ok "JWT_SECRET generated in .env"
 fi
 
 # Next steps

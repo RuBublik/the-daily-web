@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser')
 const authRoutes = require('./routes/authRoutes');
+const impactRouter = require('./routes/impact');
 const { User } = require('./models/user');
 const {getJwtSecret}=require('./middleware/authMiddleware')
 
@@ -36,6 +37,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
@@ -64,6 +66,7 @@ app.use(async (req, res, next) => {
 
 
 app.use('/', indexRouter);
+app.use('/impact', requireRole('editor'), impactRouter);
 // comments first: the more specific path must be matched before /api/articles
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);

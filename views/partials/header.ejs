@@ -20,6 +20,7 @@
           <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
           <% if (user.role === 'editor') { %>
             <a href="/editor" class="<%= path.startsWith('/editor') ? 'active' : '' %>">Editor area</a>
+            <a href="/impact" class="<%= path.startsWith('/impact') ? 'active' : '' %>">Impact</a>
           <% } %>
         </nav>
       <% } %>

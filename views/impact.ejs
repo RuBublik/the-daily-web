@@ -1,0 +1,42 @@
+<%- include('partials/header') %>
+  <section class="impact" id="impact"
+    data-selected-id="<%= selected ? selected._id : '' %>"
+    data-default-range="<%= defaultRange %>">
+    <h1 class="section-title">Impact Analytics</h1>
+
+    <div class="impact-picker">
+      <label for="impact-search">Article</label>
+      <input type="search" id="impact-search" autocomplete="off" maxlength="100"
+        placeholder="Search published articles" value="<%= selected ? selected.title : '' %>">
+      <ul class="impact-results" id="impact-results" hidden></ul>
+    </div>
+
+    <div class="impact-ranges" role="group" aria-label="Time range">
+      <% ranges.forEach((range) => { %>
+        <button type="button" data-range="<%= range %>" aria-pressed="<%= range === defaultRange %>"><%= rangeLabels[range] %></button>
+      <% }); %>
+    </div>
+
+    <p class="impact-message" id="impact-message" aria-live="polite">Choose an article to see its views over time.</p>
+
+    <div class="impact-chart-box" id="impact-chart-box" hidden>
+      <canvas id="impact-chart" role="img" aria-label="Views per hour, with a dashed line at every approved update"></canvas>
+    </div>
+
+    <table class="impact-updates" id="impact-updates" hidden>
+      <caption>Average views per hour, 24 hours before and after each approval</caption>
+      <thead>
+        <tr>
+          <th>Approved</th>
+          <th></th>
+          <th>Before</th>
+          <th>After</th>
+          <th>Change</th>
+        </tr>
+      </thead>
+      <tbody id="impact-updates-body"></tbody>
+    </table>
+  </section>
+  <script src="/vendor/chart.js/chart.umd.min.js"></script>
+  <script src="/js/impact.js"></script>
+<%- include('partials/footer') %>

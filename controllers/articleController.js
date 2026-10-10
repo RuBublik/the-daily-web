@@ -117,9 +117,34 @@ async function listArticles(req, res) {
   }
 }
 
+// GET /api/articles/:id
+async function getArticle(req, res) {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ error: 'Invalid article id' });
+  }
+
+  try {
+    // returns only published
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } })
+      .select('title summary image category authorName publishDate viewCount content')
+      .lean();
+
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    res.json(article);
+  } catch (err) {
+    console.error('Failed to load article:', err);
+    res.status(500).json({ error: 'Could not load article' });
+  }
+}
+
 module.exports = {
   parseFeedQuery,
   findPublishedArticles,
   listArticles,
+  getArticle,
   PAGE_SIZE,
 };

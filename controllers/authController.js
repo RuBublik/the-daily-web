@@ -100,7 +100,8 @@ async function login(req, res, next) {
 
     const token = generateToken(user);
     sendTokenCookie(res, token);
-    return res.redirect('/');
+    // an editor lands in the editor area, everyone else on the home page
+    return res.redirect(user.role === 'editor' ? '/editor' : '/');
   } catch (error) {
     next(error);
   }

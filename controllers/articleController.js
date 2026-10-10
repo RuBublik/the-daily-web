@@ -1,6 +1,7 @@
 const createError = require('http-errors');
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
+const ViewStat = require('../models/ViewStat');
 const categories = require('../config/categories');
 const { getViewedIds, markViewed } = require('../middleware/viewedArticles');
 
@@ -161,6 +162,8 @@ async function recordView(req, res) {
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Article not found' });
     }
+    // views over time, for the Impact chart
+    await ViewStat.record(id);
     res.status(204).end();
   } catch (err) {
     console.error('Failed to record view:', err);

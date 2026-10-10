@@ -2,7 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
-const { approveArticle, returnArticle, editDraft, editLive } = require('../controllers/editorController');
+const Comment = require('../models/Comment');
+const ViewStat = require('../models/ViewStat');
+const { approveArticle, returnArticle, editDraft, editLive, deleteArticle } = require('../controllers/editorController');
 
 // The editor's approve / return flow against a real MongoDB.
 // Skips when MONGO_URI isn't set, so it never blocks a normal `npm test` run.
@@ -180,4 +182,35 @@ test('"Edit draft" works in any status that has a draft and keeps the status', {
   res = mockRes();
   await editLive({ params: { id }, body: { title: 'x' }, user: editor }, res);
   assert.equal(res.statusCode, 400);
+});
+
+test('deleting an article also deletes its comments and view statistics', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: TEST_AUTHOR,
+    title: 'To delete',
+    summary: 'Summary',
+    category: 'News',
+    content: 'Body',
+    status: 'published',
+    publishDate: new Date(),
+  });
+  const id = article._id.toString();
+  await Comment.create({ article: id, guestId: 'test-device', authorName: 'Guest', text: 'Nice' });
+  await ViewStat.record(id);
+
+  const res = mockRes();
+  res.end = () => res;
+  await deleteArticle({ params: { id }, user: editor }, res);
+
+  assert.equal(res.statusCode, 204);
+  assert.equal(await Article.countDocuments({ _id: id }), 0);
+  assert.equal(await Comment.countDocuments({ article: id }), 0);
+  assert.equal(await ViewStat.countDocuments({ article: id }), 0);
 });

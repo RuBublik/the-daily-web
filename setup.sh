@@ -5,7 +5,7 @@
 #   ./setup.sh          install dependencies and create .env
 #   ./setup.sh --help   show this message
 #
-# Safe to re-run. Never overwrites an existing .env.
+# Safe to re-run. Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
 
 set -euo pipefail
 
@@ -58,6 +58,16 @@ else
   ok ".env created from .env.example"
 fi
 
+# Generate JWT_SECRET (signs the login cookie) 
+# only when there is none yet, an existing one is never replaced. Changing it would log everyone out.
+if ! grep -Eq '^JWT_SECRET=.+' .env || grep -q '^JWT_SECRET=your_jwt_secret_here$' .env; then
+  secret=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+  grep -v '^JWT_SECRET=' .env > .env.tmp || true
+  echo "JWT_SECRET=$secret" >> .env.tmp
+  mv .env.tmp .env
+  ok "JWT_SECRET generated in .env"
+fi
+
 # Next steps
 
 cat <<'EOF'
@@ -69,3 +79,12 @@ Next:
   2. npm start
 
 EOF
+
+
+if npm run seed >/dev/null 2>&1; then
+  ok "database seeded successfully"
+else
+  printf '  [%s!%s] Could not seed database — make sure MongoDB is running, then run: npm run seed\n' "$RED" "$RESET"
+fi
+
+printf '\nSetup completed successfully!\n\n'

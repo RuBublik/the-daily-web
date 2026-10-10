@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const createError = require('http-errors');
 const Article = require('../models/Article');
 const Comment = require('../models/Comment');
+const ViewStat = require('../models/ViewStat');
 
 const PAGE_SIZE = 20;
 const MAX_QUERY_LENGTH = 100;
@@ -394,7 +395,7 @@ async function editLive(req, res) {
   }
 }
 
-// DELETE /api/editor/articles/:id, with its comments
+// DELETE /api/editor/articles/:id, with its comments and view statistics
 async function deleteArticle(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -407,6 +408,7 @@ async function deleteArticle(req, res) {
       return articleNotFound(res);
     }
     await Comment.deleteMany({ article: id });
+    await ViewStat.deleteMany({ article: id });
 
     console.log(`Article ${id} deleted by editor ${req.user.username}`);
     res.status(204).end();

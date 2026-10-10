@@ -67,7 +67,7 @@ the-daily-web/
 ├── config/           # db.js (Mongoose connection), categories.js (article categories)
 ├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, commentController.js)
 ├── middleware/       # auth.js (requireAuth / requireRole), viewedArticles.js (viewed-articles cookie)
-├── models/           # Mongoose schemas (e.g. Article.js, Comment.js)
+├── models/           # Mongoose schemas (e.g. Article.js, Comment.js, ViewStat.js)
 ├── routes/           # URL → controller mapping
 ├── views/            # EJS templates, rendered on the server
 │   └── partials/     # shared header / footer / sidebar / weather / comments widget
@@ -113,7 +113,7 @@ An invalid parameter (unknown value, page out of range, a parameter sent as a li
 The page includes the comments section (see below) and the sidebar, which holds the slot for the weather widget.
 
 - `GET /api/articles/:id`: the same published article as JSON. Returns `400` for an invalid id and `404` if the article is not found or not published.
-- `POST /api/articles/:id/view`: sent by `public/js/article.js` on every visit. It increases the article's view counter with MongoDB's atomic `$inc`, so many readers at once never lose a count. Returns `204`, or `404` if the article is not published.
+- `POST /api/articles/:id/view`: sent by `public/js/article.js` on every visit. It increases the article's view counter with MongoDB's atomic `$inc`, so many readers at once never lose a count, and adds the view to the article's hourly statistics (see Impact Analytics). Returns `204`, or `404` if the article is not published.
 
 ### Comments
 
@@ -146,6 +146,15 @@ Actions on the review page (`public/js/editorArticle.js`). Approve and return ap
 Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
 
 To try it, log in at `/auth/login` as an editor user (created by `npm run seed`).
+
+### Impact Analytics
+
+Only for editors (`requireRole('editor')`), under the **Impact** tab or the **View impact** button on an article's review page, which opens it with that article selected.
+
+- `GET /impact`: pick a published article (search, most viewed first) and a range (24h, 7d, 30d). Chart.js draws the views per hour, with a dashed line at every time an editor approved and published the article, so the view pattern before and after each update is visible on the same graph. A table under it gives, for every approval, the average views per hour in the 24 hours before and after it and the change in percent. Chart.js is served from `node_modules` (`/vendor/chart.js`), and the markers are a small plugin of our own (`public/js/impact.js`).
+- `GET /api/articles/:id/stats?range=24h|7d|30d`: the data for the chart: every hour of the range (hours without views are `0`) and a before / after summary per approval.
+
+**How views are stored, for thousands of concurrent readers.** Every view is aggregated on write into an hourly bucket, `ViewStat { article, hour, count }`, one document per article per hour instead of one per view (MongoDB's bucket pattern). A view is a single atomic upsert with `$inc`, so concurrent readers never lose a count and no locking is needed. The unique index on `{ article, hour }` keeps exactly one bucket per hour (if two first views of an hour collide, the update is retried) and serves the chart query. The collection grows by at most 24 small documents per article per day, whatever the traffic, so a 30-day chart reads at most 720 of them. The approval times come from `Article.publishHistory`. Deleting an article also deletes its statistics.
 
 ## Database Schema
 

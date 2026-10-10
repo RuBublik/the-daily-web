@@ -1,0 +1,31 @@
+<%- include('partials/header') %>
+  <div class="layout-grid">
+    <div class="article-column">
+      <a class="back-link" href="/">Back to all articles</a>
+
+      <article class="article-page" data-article-id="<%= article._id %>">
+        <header class="article-header">
+          <span class="article-category"><%= article.category %></span>
+          <h1 dir="auto"><%= article.title %></h1>
+          <p class="article-meta">
+            By <%= article.authorName %> · <time datetime="<%= article.publishDate.toISOString() %>"><%= article.publishDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></time>
+          </p>
+        </header>
+
+        <% if (article.image) { %>
+          <img class="article-image" src="<%= article.image %>" alt="<%= article.title %>">
+        <% } %>
+
+        <div class="article-body">
+          <% paragraphs.forEach(paragraph => { %>
+            <p dir="auto"><%= paragraph %></p>
+          <% }); %>
+        </div>
+      </article>
+
+      <%- include('partials/comments', { articleId: article._id }) %>
+    </div>
+
+    <%- include('partials/sidebar') %>
+  </div>
+<%- include('partials/footer') %>

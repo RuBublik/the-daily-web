@@ -37,9 +37,9 @@ the-daily-web/
 ├── models/       # User, Article, Comment, ViewStat (see Data models below)
 ├── controllers/
 ├── routes/
-├── middleware/   # auth / role checks
+├── middleware/   # auth / role checks, request helpers (viewedArticles.js)
 ├── views/
-│   └── partials/ # header, footer, sidebar (weather widget lives here)
+│   └── partials/ # header, footer, article-card, comments, sidebar (includes weather.ejs, the weather widget slot)
 └── public/
     ├── css/
     ├── js/
@@ -54,6 +54,20 @@ the-daily-web/
 4. **View/analytics data** — records of article views over time, granular enough to drive the per-article views-over-time chart, including timestamps of when an editor approved/published an update to that article (so the graph can mark before/after behavior around each update). Design this to remain performant with thousands of articles and many concurrent readers — an approach that aggregates/buckets view events rather than storing every raw hit unbounded is worth considering.
 
 Every model needs full CRUD (Create, Read/List/Search, Update, Delete), and search must work on at least one meaningful field (e.g. article title).
+
+## Public pages (implemented)
+
+These conventions are already in the code. New work should build on them, not replace them.
+
+- Routes: `GET /` (home feed) and `GET /article/:id` (article page) in `routes/index.js`. JSON API in `routes/articles.js`: `GET /api/articles`, `GET /api/articles/:id`, `POST /api/articles/:id/view`. The comments router is mounted before the articles router in `app.js` because its path is more specific.
+- `articleController.parseFeedQuery` validates the feed query string (`q`, `category`, `viewed`, `sort`, `page`) and `articleController.findPublishedArticles` runs the query, filtering on `publishDate != null`. The home page render and the API both call these two functions, so the server-rendered first page and the Ajax pages always agree. Page size is 20.
+- Every public query selects only the approved top-level fields. `draft` and `editorNote` never leave the server.
+- The API answers bad input with `400` and a JSON `{ error }`. The home page falls back to the default feed instead of showing an error.
+- Viewed / not viewed for guests: a `viewed` cookie holds the ids of the last 100 articles the guest opened (`middleware/viewedArticles.js`, read with `cookie-parser`). It is set when the article page is rendered and validated on every read.
+- `POST /api/articles/:id/view` is sent by `public/js/article.js` on every article page load. The analytics work extends `recordView` to also store view history. It must keep increasing `viewCount`.
+- Article bodies are plain text. The article page splits them into paragraphs and prints each one escaped. Client code builds DOM with `textContent`, never `innerHTML`.
+- `views/partials/sidebar.ejs` is included on both public pages and includes `views/partials/weather.ejs`, the slot the weather widget fills.
+- CSS is Flexbox only (no CSS Grid), desktop-first, with breakpoints at 1024px and 600px.
 
 ## Roles & permissions
 

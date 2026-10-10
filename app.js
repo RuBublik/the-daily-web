@@ -7,10 +7,12 @@ const jwt = require('jsonwebtoken');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser')
 const authRoutes = require('./routes/authRoutes');
+const impactRouter = require('./routes/impact');
 const { User } = require('./models/user');
 const {getJwtSecret}=require('./middleware/authMiddleware')
 
 const connectDB = require('./config/db');
+const { requireRole } = require('./middleware/auth');
 
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
@@ -33,6 +35,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
@@ -54,11 +57,14 @@ app.use(async (req, res, next) => {
     }
   }
   res.locals.user = req.user || null;
+  // lets the header mark the current section's tab
+  res.locals.currentPath = req.path;
   next();
 });
 
 
 app.use('/', indexRouter);
+app.use('/impact', requireRole('editor'), impactRouter);
 // comments first: the more specific path must be matched before /api/articles
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);

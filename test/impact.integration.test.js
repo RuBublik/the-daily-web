@@ -68,6 +68,7 @@ test('stats return every hour of the range and a before / after per approval', {
   assert.equal(res.body.updates[1].before, 2);
   assert.equal(res.body.updates[1].after, 6);
   assert.equal(res.body.updates[1].change, 200);
+  assert.deepEqual(res.body.updates.map((u) => u.number), [0, 1]);
 
   // in the 24h range both approvals are outside: no markers
   const res24 = mockRes();

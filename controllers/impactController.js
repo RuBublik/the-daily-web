@@ -99,6 +99,12 @@ async function getStats(req, res) {
     const updates = approvals.length > 0
       ? summarizeUpdates(approvals, fullSeries, now, article.publishHistory[0])
       : [];
+    // the approval's place in the whole history (0 = first publish, then update 1, 2, ...),
+    // so the labels stay right when earlier approvals are outside the range
+    const skipped = article.publishHistory.length - approvals.length;
+    updates.forEach((update, index) => {
+      update.number = skipped + index;
+    });
 
     const series = fullSeries.filter((point) => point.hour >= from);
     res.json({
@@ -114,4 +120,26 @@ async function getStats(req, res) {
   }
 }
 
-module.exports = { getStats, parseRange, hourlySeries, summarizeUpdates, RANGES, COMPARE_HOURS };
+// GET /impact, the Impact Analytics page. ?article=<id> opens it with that article selected
+async function showImpact(req, res, next) {
+  try {
+    const { article: id } = req.query;
+    let selected = null;
+    if (typeof id === 'string' && mongoose.isValidObjectId(id)) {
+      const article = await Article.findOne({ _id: id, publishDate: { $ne: null } }).select('title').lean();
+      if (article) {
+        selected = { _id: article._id, title: article.title };
+      }
+    }
+    res.render('impact', {
+      title: 'Impact Analytics - The Daily Web',
+      selected,
+      ranges: Object.keys(RANGES),
+      defaultRange: DEFAULT_RANGE,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getStats, showImpact, parseRange, hourlySeries, summarizeUpdates, RANGES, COMPARE_HOURS };

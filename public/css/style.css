@@ -54,21 +54,69 @@ a {
 /* "body > header" is the site header, not the header inside an article */
 body > header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   max-width: 1200px;
   margin: 0 auto 1.5rem;
-  padding: 12px 20px;
+  padding: 12px 20px 0;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-body > header a {
+/* top row: site title on the left, login bar on the right */
+.site-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 12px;
+}
+
+.site-title {
   color: #1f2328;
   font-size: 1.25rem;
   font-weight: 700;
   text-decoration: none;
+}
+
+/* the login bar sits inside the header here, so it drops its own bar look */
+body > header .top-auth-navbar {
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+body > header .auth-bar-content {
+  margin: 0;
+  gap: 1rem;
+}
+
+/* second row: one tab per area of the logged-in user */
+.site-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.site-tabs a {
+  padding: 10px 0;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-tabs a:hover {
+  color: #1f2328;
+}
+
+.site-tabs a.active {
+  color: #0b74de;
+  border-bottom-color: #0b74de;
 }
 
 body > footer {
@@ -421,6 +469,121 @@ body > footer p {
   background: #095db3;
 }
 
+/* ---------- Impact Analytics ---------- */
+
+.impact-picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 36rem;
+  margin-bottom: 1rem;
+}
+
+.impact-picker input {
+  padding: 0.5rem;
+  font: inherit;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+}
+
+/* the search results float over the page below the search box */
+.impact-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 18rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.impact-results li {
+  padding: 0.5rem;
+}
+
+.impact-results button {
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.impact-results li:hover {
+  background: #f3f4f6;
+}
+
+.impact-ranges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.impact-ranges button {
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  background: #ffffff;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.impact-ranges button[aria-pressed="true"] {
+  color: #ffffff;
+  background: #0b74de;
+  border-color: #0b74de;
+}
+
+.impact-message {
+  color: #64748b;
+}
+
+/* Chart.js fills this box; a fixed height keeps the chart readable on phones too */
+.impact-chart-box {
+  position: relative;
+  height: 340px;
+  margin-bottom: 1.5rem;
+}
+
+.impact-updates {
+  width: 100%;
+  max-width: 40rem;
+  border-collapse: collapse;
+}
+
+.impact-updates caption {
+  margin-bottom: 0.5rem;
+  color: #64748b;
+  text-align: left;
+}
+
+.impact-updates th,
+.impact-updates td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.change-up {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.change-down {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 /* ---------- Responsive ---------- */
 
 /* Tablet: 2 cards per row, the sidebar moves under the main column */
@@ -696,4 +859,224 @@ body > footer p {
 .back-home-link:hover {
   color: #007bff;
   text-decoration: underline;
+
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.75rem;
+}
+/* Editor area */
+.editor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.editor-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.editor-filters select,
+.editor-filters input {
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+}
+
+/* tables don't shrink well, so on narrow screens the table scrolls sideways inside its wrapper */
+.editor-table-wrapper {
+  overflow-x: auto;
+}
+
+.editor-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editor-table th,
+.editor-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.editor-table td:first-child {
+  white-space: normal;
+  min-width: 14rem;
+}
+
+.status-pill {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  background-color: #f3f4f6;
+}
+
+.status-pill.pending { background-color: #fef3c7; }
+.status-pill.published { background-color: #dcfce7; }
+.status-pill.returned { background-color: #fee2e2; }
+
+.update-badge {
+  font-size: 0.75rem;
+  color: #2563eb;
+}
+
+.load-more {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Editor review page */
+.editor-article-header h1 {
+  margin-bottom: 0.25rem;
+}
+
+.editor-article-meta {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.editor-note {
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-left: 4px solid #f87171;
+  background-color: #fef2f2;
+}
+
+.editor-note p {
+  margin: 0.25rem 0 0;
+}
+
+.editor-message {
+  min-height: 1.25rem;
+}
+
+.editor-message.error {
+  color: #dc2626;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.editor-actions button,
+.return-form button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editor-actions button.primary {
+  background-color: #16a34a;
+  color: #fff;
+  border: none;
+}
+
+.editor-actions button.danger {
+  background-color: #dc2626;
+  color: #fff;
+  border: none;
+}
+
+/* grayed out: e.g. "Edit live" on an article that was never published */
+.editor-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.return-form,
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 50rem;
+  margin: 1rem 0;
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.edit-form h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.edit-form-note {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.9rem;
+}
+
+.return-form textarea,
+.edit-form input,
+.edit-form textarea,
+.edit-form select {
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+}
+
+.return-form button {
+  align-self: flex-start;
+}
+
+/* display: flex above would otherwise override the hidden attribute that editorArticle.js toggles */
+.edit-form[hidden],
+.return-form[hidden],
+.versions[hidden] {
+  display: none;
+}
+
+/* pending and live versions side by side on wide screens, stacked on narrow ones */
+.versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.version {
+  flex: 1 1 20rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.version.pending {
+  border-color: #fbbf24;
+}
+
+.version.live {
+  border-color: #4ade80;
+}
+
+.version h2 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.version-image {
+  width: 100%;
+  max-height: 16rem;
+  object-fit: cover;
+}
+
+.version-category {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.danger-zone {
+  margin-top: 2rem;
 }

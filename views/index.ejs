@@ -4,15 +4,53 @@
     <section class="articles-feed">
       <h1 class="section-title">Latest Articles</h1>
 
-      <div class="articles-grid">
-        <% if (articles && articles.length > 0) { %>
-          <% articles.forEach(article => { %>
-            <%- include('partials/article-card', { article: article }) %>
-          <% }); %>
-        <% } else { %>
-          <p class="no-articles">No articles found.</p>
-        <% } %>
+      <form id="feed-filters" class="feed-filters" method="get" action="/" role="search">
+        <label>
+          Search
+          <input type="search" name="q" maxlength="100" value="<%= filters.q %>">
+        </label>
+
+        <label>
+          Category
+          <select name="category">
+            <option value="">All categories</option>
+            <% categories.forEach(category => { %>
+              <option value="<%= category %>" <%= filters.category === category ? 'selected' : '' %>><%= category %></option>
+            <% }); %>
+          </select>
+        </label>
+
+        <label>
+          Show
+          <select name="viewed">
+            <option value="" <%= filters.viewed === '' ? 'selected' : '' %>>All articles</option>
+            <option value="unviewed" <%= filters.viewed === 'unviewed' ? 'selected' : '' %>>Not viewed yet</option>
+            <option value="viewed" <%= filters.viewed === 'viewed' ? 'selected' : '' %>>Already viewed</option>
+          </select>
+        </label>
+
+        <label>
+          Sort
+          <select name="sort">
+            <option value="date" <%= filters.sort === 'date' ? 'selected' : '' %>>Newest first</option>
+            <option value="popular" <%= filters.sort === 'popular' ? 'selected' : '' %>>Most popular</option>
+          </select>
+        </label>
+
+        <button type="submit">Search</button>
+      </form>
+
+      <div class="articles-grid" id="articles-grid">
+        <% articles.forEach(article => { %>
+          <%- include('partials/article-card', { article: article }) %>
+        <% }); %>
       </div>
+
+      <p class="feed-status" id="feed-status" aria-live="polite"><%= articles.length === 0 ? 'No articles found.' : '' %></p>
+      <div id="feed-sentinel" data-has-more="<%= hasMore %>"></div>
     </section>
+
+    <%- include('partials/sidebar') %>
   </div>
+  <script src="/js/feed.js"></script>
 <%- include('partials/footer') %>

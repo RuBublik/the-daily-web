@@ -14,6 +14,7 @@ const connectDB = require('./config/db');
 
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
+const articlesRouter = require('./routes/articles');
 const devTestRouter = require('./routes/devTest');
 
 connectDB().catch((err) => {
@@ -58,7 +59,9 @@ app.use(async (req, res, next) => {
 
 
 app.use('/', indexRouter);
+// comments first: the more specific path must be matched before /api/articles
 app.use('/api/articles/:articleId/comments', commentsRouter);
+app.use('/api/articles', articlesRouter);
 app.use('/dev', devTestRouter);
 app.use('/auth', authRoutes);
 

@@ -1,0 +1,73 @@
+<%- include('../partials/header') %>
+  <section class="editor-article" id="reporter-article" data-article-id="<%= article._id %>">
+    <a class="back-link" href="/reporter">Back to my articles</a>
+
+    <header class="editor-article-header">
+      <h1 dir="auto"><%= version.title || 'Untitled article' %></h1>
+      <p class="editor-article-meta">
+        <span class="status-pill <%= article.status %>"><%= article.status %></span>
+        · Last saved <time datetime="<%= article.lastUpdated.toISOString() %>"><%= article.lastUpdated.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %></time>
+        <% if (isPublic) { %>
+          · <a href="/article/<%= article._id %>">Public page</a>
+        <% } %>
+      </p>
+    </header>
+
+    <% if (article.status === 'returned' && article.editorNote) { %>
+      <div class="editor-note">
+        <strong>The editor returned this article for revision:</strong>
+        <p dir="auto"><%= article.editorNote %></p>
+      </div>
+    <% } %>
+
+    <% if (editable) { %>
+      <%# no "Save" button: public/js/reporterArticle.js saves every change on its own %>
+      <form class="edit-form" id="draft-form" novalidate>
+        <% if (isPublic) { %>
+          <p class="edit-form-note">Readers keep seeing the published version until an editor approves your changes.</p>
+        <% } %>
+        <label>Title <input name="title" value="<%= version.title %>" maxlength="200" required></label>
+        <label>Summary <textarea name="summary" rows="2" maxlength="500" required><%= version.summary %></textarea></label>
+        <label>Image URL <input name="image" type="url" value="<%= version.image %>" maxlength="500" placeholder="https://..."></label>
+        <label>
+          Category
+          <select name="category" required>
+            <option value="">Choose a category</option>
+            <% categories.forEach((category) => { %>
+              <option value="<%= category %>" <%= version.category === category ? 'selected' : '' %>><%= category %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Content <textarea name="content" rows="14" maxlength="50000" required><%= version.content %></textarea></label>
+        <p class="autosave-status" id="autosave-status" aria-live="polite">Changes are saved automatically.</p>
+      </form>
+
+      <p class="editor-message" id="reporter-message" aria-live="polite"></p>
+      <div class="editor-actions">
+        <button type="button" class="primary" id="submit-button">Submit for approval</button>
+      </div>
+    <% } else { %>
+      <p class="edit-form-note">Waiting for the editor. You can edit again once the editor publishes it or returns it to you.</p>
+    <% } %>
+
+    <div class="versions">
+      <% if (!editable && article.draft) { %>
+        <%- include('../partials/editor-article-version', {
+          kind: 'pending',
+          heading: 'Submitted version',
+          version: article.draft,
+        }) %>
+      <% } %>
+      <% if (isPublic) { %>
+        <%- include('../partials/editor-article-version', {
+          kind: 'live',
+          heading: 'Published version (what readers see)',
+          version: article,
+        }) %>
+      <% } %>
+    </div>
+  </section>
+  <% if (editable) { %>
+    <script src="/js/reporterArticle.js"></script>
+  <% } %>
+<%- include('../partials/footer') %>

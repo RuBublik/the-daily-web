@@ -65,7 +65,7 @@ the-daily-web/
 ├── setup.sh          # one-command development setup
 ├── .env.example      # template for .env (copy, then fill in)
 ├── config/           # db.js (Mongoose connection), categories.js (article categories)
-├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, commentController.js)
+├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, reporterController.js, weatherController.js, commentController.js)
 ├── middleware/       # auth.js (requireAuth / requireRole), viewedArticles.js (viewed-articles cookie)
 ├── models/           # Mongoose schemas (e.g. Article.js, Comment.js)
 ├── routes/           # URL → controller mapping
@@ -73,7 +73,7 @@ the-daily-web/
 │   └── partials/     # shared header / footer / sidebar / weather / comments widget
 ├── public/           # static files served as-is
 │   ├── css/
-│   └── js/           # vanilla client JS (e.g. feed.js, article.js, comments.js)
+│   └── js/           # vanilla client JS (e.g. feed.js, article.js, comments.js, reporterArticle.js, weather.js)
 └── test/             # node:test test suites
 ```
 
@@ -110,7 +110,7 @@ An invalid parameter (unknown value, page out of range, a parameter sent as a li
 
 `GET /article/:id` is rendered fully on the server: title, author, category, publish date, main image and body. It shows only the approved version of the article (`content`), never an edit that is still waiting for approval. An invalid id, an unknown id, or an article that is not published gets the 404 page, so drafts and pending articles can't be reached by guessing the URL. The body is stored as plain text and printed paragraph by paragraph with HTML escaping.
 
-The page includes the comments section (see below) and the sidebar, which holds the slot for the weather widget.
+The page includes the comments section (see below) and the sidebar with the weather widget.
 
 - `GET /api/articles/:id`: the same published article as JSON. Returns `400` for an invalid id and `404` if the article is not found or not published.
 - `POST /api/articles/:id/view`: sent by `public/js/article.js` on every visit. It increases the article's view counter with MongoDB's atomic `$inc`, so many readers at once never lose a count. Returns `204`, or `404` if the article is not published.
@@ -177,3 +177,6 @@ Ensure the following keys are defined in your `.env` file:
 JWT_SECRET=your_jwt_secret_key
 editor_SIGNUP_CODE=your_optional_editor_registration_code
 COOKIE_NAME=token
+# optional, the weather widget's city (Open-Meteo needs no API key)
+WEATHER_CITY=Tel Aviv
+

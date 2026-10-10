@@ -365,6 +365,55 @@ body > footer p {
   color: #64748b;
 }
 
+/* display: flex below would otherwise override the hidden attribute that weather.js toggles */
+.weather-body[hidden],
+.weather-status[hidden] {
+  display: none;
+}
+
+.weather-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.weather-widget .weather-city {
+  color: #1f2328;
+  font-weight: 600;
+}
+
+.weather-now {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.weather-icon {
+  font-size: 2rem;
+}
+
+.weather-temp {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1f2328;
+}
+
+.weather-details {
+  margin: 0.25rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.weather-details li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.weather-widget .weather-updated {
+  font-size: 0.8rem;
+}
+
 /* ---------- Comments widget ---------- */
 
 .comments {
@@ -588,6 +637,7 @@ body > footer p {
 
 .role-pill.editor { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 .role-pill.user { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.role-pill.reporter { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
 
 .guest-info {
   display: flex;
@@ -964,4 +1014,38 @@ body > footer p {
 
 .danger-zone {
   margin-top: 2rem;
+}
+
+/* Reporter area */
+.reporter-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.new-article-button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  color: #fff;
+  background-color: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.new-article-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.autosave-status {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.autosave-status.error {
+  color: #dc2626;
 }

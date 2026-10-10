@@ -81,10 +81,12 @@ Next:
 EOF
 
 
-if npm run seed >/dev/null 2>&1; then
-  ok "database seeded successfully"
+# fills the local database with the demo data from scratch (a non-local MONGO_URI is refused)
+if seed_output=$(npm run seed 2>&1); then
+  ok "database seeded with the demo data"
 else
-  printf '  [%s!%s] Could not seed database — make sure MongoDB is running, then run: npm run seed\n' "$RED" "$RESET"
+  # show the seed's own reason, e.g. MongoDB not running, or a non-local MONGO_URI
+  printf '  [%s!%s] %s\n' "$RED" "$RESET" "$(printf '%s\n' "$seed_output" | grep 'Seeding failed' | tail -1)"
 fi
 
 printf '\nSetup completed successfully!\n\n'

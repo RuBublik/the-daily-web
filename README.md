@@ -145,7 +145,7 @@ Actions on the review page (`public/js/editorArticle.js`). Approve and return ap
 
 Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
 
-To try it, log in at `/auth/login` as an editor user (created by `npm run seed`).
+To try it, log in at `/auth/login` as the editor `pepe` (created by `npm run seed`).
 
 ### Impact Analytics
 
@@ -168,10 +168,21 @@ Only for editors (`requireRole('editor')`), under the **Impact** tab or the **Vi
 
 ## Database Seeding
 
-To seed the database with initial sample data (e.g., test editors and reporters), run:
+`npm run seed` fills the database with the demo data (`scripts/seed.js`). It **wipes** users, articles, comments and view statistics, then creates:
+
+- users `pepe` (editor) and `yossi`, `noa`, `dan`, `maya` (reporters)
+- 520 articles in every category and every status: published (some updated several times, a few with an update in progress or waiting for approval), pending, drafts, and returned with an editor's note
+- comments on published articles
+- up to 30 days of hourly views (`ViewStat`) for every published article, changing after each update, so the Impact chart shows a before / after; each article's `viewCount` is the total
+
+The data is the same on every run, and all dates are relative to now. A full seed is about 7 MB.
 
 ```bash
-npm run seed
+npm run seed                   # local database (MONGO_URI in .env); users get the password demo1234
+npm run seed -- --force        # a non-local database such as Atlas: SEED_PASSWORD must be set in .env
+```
+
+The password of all seeded users is `SEED_PASSWORD` from `.env`; on a local database it falls back to `demo1234`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
 
 ## Authentication & Authorization
 
@@ -184,5 +195,5 @@ Ensure the following keys are defined in your `.env` file:
 
 ```env
 JWT_SECRET=your_jwt_secret_key
-editor_SIGNUP_CODE=your_optional_editor_registration_code
 COOKIE_NAME=token
+```

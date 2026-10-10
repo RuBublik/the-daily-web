@@ -93,6 +93,23 @@ const articleSchema = new mongoose.Schema({
   },
 });
 
+// the  allowed status changes, by who may make them.
+const TRANSITIONS = {
+  reporter: {
+    draft: ['pending'],
+    returned: ['pending'],
+    published: ['pending'], // an update to a published article goes to approval too
+  },
+  editor: {
+    pending: ['published', 'returned'],
+  },
+};
+
+articleSchema.statics.canTransition = function (from, to, role) {
+  const allowed = (TRANSITIONS[role] || {})[from] || [];
+  return allowed.includes(to);
+};
+
 // indexes creation
 articleSchema.index({ publishDate: -1 });
 articleSchema.index({ viewCount: -1 });

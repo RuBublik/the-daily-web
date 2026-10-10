@@ -3,8 +3,13 @@ require('dotenv').config({ quiet: true });
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const logger = require('morgan');
-const cookieParser = require('cookie-parser');
+const cookieParser = require('cookie-parser')
+const authRoutes = require('./routes/authRoutes');
+const { User } = require('./models/user');
+const {getJwtSecret}=require('./middleware/authMiddleware')
+
 const connectDB = require('./config/db');
 
 const indexRouter = require('./routes/index');
@@ -29,13 +34,37 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
+
+app.use(async (req, res, next) => {
+  try {
+    const token = req.cookies?.[COOKIE_NAME];
+    if (token) {
+      const decoded = jwt.verify(token, getJwtSecret());
+      const user = await User.findById(decoded.id).select('-passwordHash').lean();
+      if (user) {
+        req.user = user;
+      }
+    }
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      res.clearCookie(COOKIE_NAME);
+    } else {
+      console.error('Database/Server error during auth check:', err.message);
+    }
+  }
+  res.locals.user = req.user || null;
+  next();
+});
+
+
 app.use('/', indexRouter);
 // comments first: the more specific path must be matched before /api/articles
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/dev', devTestRouter);
+app.use('/auth', authRoutes);
 
-// catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
 });
@@ -50,11 +79,9 @@ app.use('/api', function(err, req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  // render the error page
   res.status(err.status || 500);
   res.render('error', { title: 'Error' });
 });

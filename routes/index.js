@@ -4,7 +4,6 @@ const articleController = require('../controllers/articleController');
 
 const router = express.Router();
 
-/* GET home page. */
 router.get('/', homeController.showHome);
 
 /* GET a single published article. */

@@ -65,3 +65,32 @@ test('a new article is not public and has never been approved', () => {
 test('a new article has no open edit', () => {
   assert.strictEqual(makeArticle().draft, null);
 });
+
+test('reporter can submit a draft, a returned article or an update for approval', () => {
+  assert.ok(Article.canTransition('draft', 'pending', 'reporter'));
+  assert.ok(Article.canTransition('returned', 'pending', 'reporter'));
+  assert.ok(Article.canTransition('published', 'pending', 'reporter'));
+});
+
+test('editor can approve or return a pending article', () => {
+  assert.ok(Article.canTransition('pending', 'published', 'editor'));
+  assert.ok(Article.canTransition('pending', 'returned', 'editor'));
+});
+
+test('reporter cannot publish or return', () => {
+  assert.equal(Article.canTransition('pending', 'published', 'reporter'), false);
+  assert.equal(Article.canTransition('draft', 'published', 'reporter'), false);
+  assert.equal(Article.canTransition('pending', 'returned', 'reporter'), false);
+});
+
+test('editor cannot skip the approval flow', () => {
+  assert.equal(Article.canTransition('draft', 'published', 'editor'), false);
+  assert.equal(Article.canTransition('returned', 'published', 'editor'), false);
+  assert.equal(Article.canTransition('published', 'draft', 'editor'), false);
+});
+
+test('unknown role or status is never allowed', () => {
+  assert.equal(Article.canTransition('draft', 'pending', 'guest'), false);
+  assert.equal(Article.canTransition('draft', 'pending', undefined), false);
+  assert.equal(Article.canTransition('archived', 'pending', 'reporter'), false);
+});

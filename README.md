@@ -125,3 +125,34 @@ Every article page includes a comments section (list + add-comment form) that up
 - Comment text is rendered client-side with `textContent` (never `innerHTML`) to prevent XSS.
 
 The comments section now appears on every article page. The widget can still be previewed on its own at `/dev/comments-test`, a temporary route that is planned for removal.
+
+## Database Schema
+
+### Users Table
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `username` | String | Unique user name |
+| `password` | String | Hashed password |
+| `role` | Enum | User role: `editor` or `reporter` |
+| `created_at` | Timestamp | Account creation date |
+
+## Database Seeding
+
+To seed the database with initial sample data (e.g., test editors and reporters), run:
+
+```bash
+npm run seed
+
+## Authentication & Authorization
+
+### Roles & Access Control
+* **`reporter`**: Default role for standard users.
+* **`editor`**: Advanced user role with administrative/editing privileges.
+
+### Environment Variables
+Ensure the following keys are defined in your `.env` file:
+
+```env
+JWT_SECRET=your_jwt_secret_key
+editor_SIGNUP_CODE=your_optional_editor_registration_code
+COOKIE_NAME=token

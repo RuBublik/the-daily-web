@@ -57,6 +57,8 @@ app.use(async (req, res, next) => {
     }
   }
   res.locals.user = req.user || null;
+  // lets the header mark the current section's tab
+  res.locals.currentPath = req.path;
   next();
 });
 

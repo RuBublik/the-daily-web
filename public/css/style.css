@@ -54,21 +54,69 @@ a {
 /* "body > header" is the site header, not the header inside an article */
 body > header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   max-width: 1200px;
   margin: 0 auto 1.5rem;
-  padding: 12px 20px;
+  padding: 12px 20px 0;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-body > header a {
+/* top row: site title on the left, login bar on the right */
+.site-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 12px;
+}
+
+.site-title {
   color: #1f2328;
   font-size: 1.25rem;
   font-weight: 700;
   text-decoration: none;
+}
+
+/* the login bar sits inside the header here, so it drops its own bar look */
+body > header .top-auth-navbar {
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+body > header .auth-bar-content {
+  margin: 0;
+  gap: 1rem;
+}
+
+/* second row: one tab per area of the logged-in user */
+.site-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.site-tabs a {
+  padding: 10px 0;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-tabs a:hover {
+  color: #1f2328;
+}
+
+.site-tabs a.active {
+  color: #0b74de;
+  border-bottom-color: #0b74de;
 }
 
 body > footer {

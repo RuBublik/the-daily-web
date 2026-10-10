@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+  <section class="editor-area">
+    <h1 class="section-title">Editor area</h1>
+
+    <form class="editor-filters" id="editor-filters" action="/editor" method="get" role="search">
+      <label>
+        Status
+        <select name="status">
+          <option value="all" <%= filters.status === 'all' ? 'selected' : '' %>>All</option>
+          <% statuses.forEach((status) => { %>
+            <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= status %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label>
+        Search
+        <input type="search" name="q" value="<%= filters.q %>" placeholder="Title" maxlength="100">
+      </label>
+      <noscript><button type="submit">Filter</button></noscript>
+    </form>
+
+    <div class="editor-table-wrapper">
+      <table class="editor-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Last updated</th>
+          </tr>
+        </thead>
+        <tbody id="editor-articles">
+          <% articles.forEach((article) => { %>
+            <%- include('../partials/editor-article-row', { article }) %>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="editor-list-status" id="editor-list-status" aria-live="polite"><%= articles.length === 0 ? 'No articles found.' : '' %></p>
+    <button type="button" class="load-more" id="editor-load-more" <%= hasMore ? '' : 'hidden' %>>Load more</button>
+  </section>
+  <script src="/js/editor.js"></script>
+<%- include('../partials/footer') %>

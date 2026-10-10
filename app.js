@@ -11,11 +11,14 @@ const { User } = require('./models/user');
 const {getJwtSecret}=require('./middleware/authMiddleware')
 
 const connectDB = require('./config/db');
+const { requireRole } = require('./middleware/auth');
 
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
 const articlesRouter = require('./routes/articles');
 const devTestRouter = require('./routes/devTest');
+const editorRouter = require('./routes/editor');
+const editorApiRouter = require('./routes/editorApi');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -54,6 +57,8 @@ app.use(async (req, res, next) => {
     }
   }
   res.locals.user = req.user || null;
+  // lets the header mark the current section's tab
+  res.locals.currentPath = req.path;
   next();
 });
 
@@ -63,6 +68,8 @@ app.use('/', indexRouter);
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/dev', devTestRouter);
+app.use('/editor', requireRole('editor'), editorRouter);
+app.use('/api/editor', requireRole('editor'), editorApiRouter);
 app.use('/auth', authRoutes);
 
 app.use(function(req, res, next) {

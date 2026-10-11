@@ -124,8 +124,6 @@ Every article page includes a comments section (list + add-comment form) that up
 - **Rate limiting**: a guest can post at most 3 comments per minute per IP address (`req.ip`), determined server-side so a client can't dodge it by claiming a different identity. Going over that returns `429` with an explanatory message — the request is never silently dropped and never crashes the server.
 - Comment text is rendered client-side with `textContent` (never `innerHTML`) to prevent XSS.
 
-The comments section now appears on every article page. The widget can still be previewed on its own at `/dev/comments-test`, a temporary route that is planned for removal.
-
 ### Editor area
 
 Only for users with the `editor` role. Every page and API route is mounted behind `requireRole('editor')` (`middleware/auth.js`), so the check happens on the server for every request. A reporter gets `403`, a guest `401`.

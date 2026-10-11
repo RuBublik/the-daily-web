@@ -46,10 +46,12 @@ function average(series) {
 // `firstPublish` tells which approval was the first publish (it may be outside `approvals`)
 function summarizeUpdates(approvals, hourly, now, firstPublish) {
   const nowHour = ViewStat.startOfHour(now).getTime();
+  const firstPublishHour = ViewStat.startOfHour(firstPublish).getTime();
 
   return approvals.map((at) => {
     const approvalHour = ViewStat.startOfHour(at).getTime();
-    const afterEnd = Math.min(approvalHour + COMPARE_HOURS * HOUR_MS, nowHour + HOUR_MS);
+    // the current hour is still filling up, so it is left out, unless it is the only hour after the approval
+    const afterEnd = Math.min(approvalHour + COMPARE_HOURS * HOUR_MS, Math.max(nowHour, approvalHour + HOUR_MS));
     const after = average(hourly.filter((p) => p.time >= approvalHour && p.time < afterEnd));
     // fewer than 24 hours have passed since this approval
     const soFar = afterEnd - approvalHour < COMPARE_HOURS * HOUR_MS;
@@ -59,7 +61,8 @@ function summarizeUpdates(approvals, hourly, now, firstPublish) {
       return { at, first: true, before: null, after, change: null, soFar };
     }
 
-    const beforeStart = approvalHour - COMPARE_HOURS * HOUR_MS;
+    // nobody could see the article before its first publish, so those hours are not counted
+    const beforeStart = Math.max(approvalHour - COMPARE_HOURS * HOUR_MS, firstPublishHour);
     const before = average(hourly.filter((p) => p.time >= beforeStart && p.time < approvalHour));
     // a change in percent means nothing when there were no views before
     const change = before > 0 ? Math.round(((after - before) / before) * 100) : null;

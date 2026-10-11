@@ -99,6 +99,41 @@ test('an update less than 24 hours old is averaged over the hours so far', () =>
   assert.equal(summary.change, 100);
 });
 
+test('an update soon after the first publish compares only the hours since it was published', () => {
+  const firstPublish = at('2026-10-08T10:15:00Z');
+  // 0 before the publish, then the same 10 views/hour before and after the update at 14:00
+  const series = [
+    ...flatSeries('2026-10-07T14:00:00Z', 20, 0),
+    ...flatSeries('2026-10-08T10:00:00Z', 28, 10),
+  ];
+  const [summary] = summarizeUpdates([at('2026-10-08T14:00:00Z')], series, at('2026-10-10T00:00:00Z'), firstPublish);
+  assert.equal(summary.before, 10);
+  assert.equal(summary.change, 0);
+});
+
+test('the current hour, still filling up, is not part of the after average', () => {
+  const firstPublish = at('2026-10-01T09:00:00Z');
+  const series = [
+    ...flatSeries('2026-10-09T14:00:00Z', 24, 4),
+    ...flatSeries('2026-10-10T14:00:00Z', 2, 8), // 14:00 and 15:00 full hours
+    { time: at('2026-10-10T16:00:00Z'), count: 1 }, // 16:00, five minutes in
+  ];
+  const [summary] = summarizeUpdates([at('2026-10-10T14:10:00Z')], series, at('2026-10-10T16:05:00Z'), firstPublish);
+  assert.equal(summary.after, 8);
+  assert.equal(summary.soFar, true);
+});
+
+test('an approval in the current hour still gets an after value', () => {
+  const firstPublish = at('2026-10-01T09:00:00Z');
+  const series = [
+    ...flatSeries('2026-10-09T16:00:00Z', 24, 4),
+    { time: at('2026-10-10T16:00:00Z'), count: 3 },
+  ];
+  const [summary] = summarizeUpdates([at('2026-10-10T16:10:00Z')], series, at('2026-10-10T16:40:00Z'), firstPublish);
+  assert.equal(summary.after, 3);
+  assert.equal(summary.soFar, true);
+});
+
 test('no views before an update gives no percentage instead of dividing by zero', () => {
   const firstPublish = at('2026-10-01T09:00:00Z');
   const series = [

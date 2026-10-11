@@ -18,6 +18,7 @@
   let chart = null;
   let searchTimer = null;
   let latestRequest = 0;
+  let latestSearch = 0;
 
   function formatHour(date, withDay) {
     const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -114,10 +115,10 @@
       const at = new Date(update.at);
       row.appendChild(cell(at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + formatHour(at, false)));
       row.appendChild(cell(updateLabel(update)));
-      row.appendChild(cell(update.before === null ? '—' : update.before + '/h'));
+      row.appendChild(cell(update.before === null ? '-' : update.before + '/h'));
       row.appendChild(cell(update.after + '/h' + (update.soFar ? ' (so far)' : '')));
       if (update.change === null) {
-        row.appendChild(cell('—'));
+        row.appendChild(cell('-'));
       } else {
         const sign = update.change > 0 ? '+' : '';
         row.appendChild(cell(sign + update.change + '%', update.change >= 0 ? 'change-up' : 'change-down'));
@@ -176,9 +177,14 @@
     if (search.value.trim()) {
       query.set('q', search.value.trim());
     }
+    const searchId = ++latestSearch;
     try {
       const response = await fetch('/api/articles?' + query);
       const data = await response.json();
+      // a newer search was sent meanwhile, its answer wins
+      if (searchId !== latestSearch) {
+        return;
+      }
       results.replaceChildren();
       (data.articles || []).forEach((article) => {
         const item = document.createElement('li');
@@ -196,7 +202,9 @@
       }
       results.hidden = false;
     } catch (err) {
-      message.textContent = 'Could not search articles, check your connection';
+      if (searchId === latestSearch) {
+        message.textContent = 'Could not search articles, check your connection';
+      }
     }
   }
 
@@ -222,8 +230,9 @@
 
   // a shared link may carry a range too
   const linkedRange = new URLSearchParams(location.search).get('range');
-  if (linkedRange && page.querySelector('[data-range="' + linkedRange + '"]')) {
-    page.querySelector('[data-range="' + linkedRange + '"]').click();
+  const linkedButton = Array.from(rangeButtons).find((button) => button.dataset.range === linkedRange);
+  if (linkedButton) {
+    linkedButton.click();
   } else {
     load();
   }

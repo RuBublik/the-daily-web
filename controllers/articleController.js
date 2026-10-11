@@ -144,7 +144,6 @@ async function getArticle(req, res) {
 }
 
 // POST /api/articles/:id/view
-// the analytics part of the project (view history over time) will extend this handler
 async function recordView(req, res) {
   const { id } = req.params;
 

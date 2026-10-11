@@ -13,8 +13,9 @@ College assignment - news website.
 ./setup.sh
 ```
 
-Checks your Node version, installs dependencies, and creates `.env` from
-`.env.example`. Safe to re-run — it never overwrites an existing `.env`.
+Checks your Node version, installs dependencies, creates `.env` from
+`.env.example` (an existing `.env` is never overwritten) and seeds the local
+database. Every run resets the local database to the demo data.
 
 Then point `MONGO_URI` in `.env` at a database. Remember to include the database
 name in the path, otherwise Mongoose silently uses one called `test`.
@@ -178,11 +179,11 @@ Only for editors (`requireRole('editor')`), under the **Impact** tab or the **Vi
 The data is the same on every run, and all dates are relative to now. A full seed is about 7 MB.
 
 ```bash
-npm run seed                   # local database (MONGO_URI in .env); users get the password demo1234
+npm run seed                   # local database (MONGO_URI in .env); users get the password q1w2e3r4
 npm run seed -- --force        # a non-local database such as Atlas: SEED_PASSWORD must be set in .env
 ```
 
-The password of all seeded users is `SEED_PASSWORD` from `.env`; on a local database it falls back to `demo1234`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
+The password of all seeded users is `SEED_PASSWORD` from `.env`; on a local database it falls back to `q1w2e3r4`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
 
 ## Authentication & Authorization
 

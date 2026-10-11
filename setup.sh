@@ -2,10 +2,11 @@
 #
 # setup.sh — get a fresh clone of the-daily-web running.
 #
-#   ./setup.sh          install dependencies and create .env
+#   ./setup.sh          install dependencies, create .env and seed the local database
 #   ./setup.sh --help   show this message
 #
-# Safe to re-run. Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
+# Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
+# Every run resets the database to the demo data (npm run seed).
 
 set -euo pipefail
 
@@ -19,7 +20,7 @@ ok()  { printf '  [%sV%s] %s\n' "$GREEN" "$RESET" "$1"; }
 die() { printf '\n  [%sX%s] %s\n\n' "$RED" "$RESET" "$1" >&2; exit 1; }
 
 case "${1:-}" in
-  -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   "")        ;;
   *)         die "Unknown option: $1  (try --help)" ;;
 esac

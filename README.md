@@ -174,18 +174,18 @@ Only for editors (`requireRole('editor')`), under the **Impact** tab or the **Vi
 `npm run seed` fills the database with the demo data (`scripts/seed.js`). It **wipes** users, articles, comments and view statistics, then creates:
 
 - users `pepe` (editor) and `yossi`, `noa`, `dan`, `maya` (reporters)
-- 520 articles in every category and every status: published (some updated several times, a few with an update in progress or waiting for approval), pending, drafts, and returned with an editor's note
+- 530 articles in every category and every status: published (some updated several times, a few with an update in progress or waiting for approval), pending, drafts, and returned with an editor's note. 10 of the published ones are 1 to 3 years old, so the Impact chart's daily and monthly steps can be shown
 - comments on published articles
-- up to 30 days of hourly views (`ViewStat`) for every published article, changing after each update, so the Impact chart shows a before / after; each article's `viewCount` is the total
+- the views of every published article, changing after each update, so the Impact chart shows a before / after: hourly buckets (`ViewStat`) for the last 90 days, like the TTL index keeps them, and daily totals (`DailyViewStat`) for the whole history; each article's `viewCount` is the total
 
-The data is the same on every run, and all dates are relative to now. A full seed is about 7 MB.
+The data is the same on every run, and all dates are relative to now. A full seed is about 10 MB. The articles are inserted before their comments and views, and an invalid document stops the seed, so nothing is dropped silently. If a step fails after the wipe, the error says what the database was left with.
 
 ```bash
 npm run seed                   # local database (MONGO_URI in .env); users get the password q1w2e3r4
 npm run seed -- --force        # a non-local database such as Atlas: SEED_PASSWORD must be set in .env
 ```
 
-The password of all seeded users is `SEED_PASSWORD` from `.env`; on a local database it falls back to `q1w2e3r4`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
+On a local database every seeded user gets the password `q1w2e3r4`; on any other database it is `SEED_PASSWORD` from `.env`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
 
 ## Authentication & Authorization
 

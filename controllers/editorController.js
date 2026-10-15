@@ -5,6 +5,7 @@ const createError = require('http-errors');
 const Article = require('../models/Article');
 const Comment = require('../models/Comment');
 const ViewStat = require('../models/ViewStat');
+const DailyViewStat = require('../models/DailyViewStat');
 
 const PAGE_SIZE = 20;
 const MAX_QUERY_LENGTH = 100;
@@ -407,8 +408,12 @@ async function deleteArticle(req, res) {
     if (!deleted) {
       return articleNotFound(res);
     }
-    await Comment.deleteMany({ article: id });
-    await ViewStat.deleteMany({ article: id });
+    // its comments and view history go with it; independent collections, so all at once
+    await Promise.all([
+      Comment.deleteMany({ article: id }),
+      ViewStat.deleteMany({ article: id }),
+      DailyViewStat.deleteMany({ article: id }),
+    ]);
 
     console.log(`Article ${id} deleted by editor ${req.user.username}`);
     res.status(204).end();

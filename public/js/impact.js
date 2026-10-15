@@ -1,5 +1,6 @@
-// Impact Analytics page: pick a published article and see its views per hour, with a dashed line
-// at every approval and a before / after table. Data comes from GET /api/articles/:id/stats.
+// Impact Analytics page: pick a published article and see its views over time (per hour, day or
+// month, the server picks by the range length), with a dashed line at every approval and a
+// before / after table. Data comes from GET /api/articles/:id/stats.
 
 (function () {
   const page = document.getElementById('impact');
@@ -12,12 +13,12 @@
   const table = document.getElementById('impact-updates');
   const tableBody = document.getElementById('impact-updates-body');
 
-  const HOUR_MS = 60 * 60 * 1000;
   let articleId = page.dataset.selectedId || null;
   let range = page.dataset.defaultRange;
   let chart = null;
   let searchTimer = null;
   let latestRequest = 0;
+  let latestSearch = 0;
 
   function formatHour(date, withDay) {
     const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -25,6 +26,17 @@
       return time;
     }
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + time;
+  }
+
+  // the x axis label of a point, by the chart's step
+  function pointLabel(time, data) {
+    if (data.step === 'month') {
+      return time.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    if (data.step === 'day') {
+      return time.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    return formatHour(time, data.range !== '24h');
   }
 
   function updateLabel(update) {
@@ -41,26 +53,25 @@
       ctx.fillStyle = '#dc2626';
       ctx.font = '12px sans-serif';
       ctx.setLineDash([6, 4]);
-      options.markers.forEach((marker) => {
+      options.markers.forEach((marker, index) => {
         const x = scales.x.getPixelForValue(marker.index);
         ctx.beginPath();
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
         ctx.stroke();
-        ctx.fillText(marker.label, x + 4, chartArea.top + 12);
+        // each label one line lower than the one before, so close approvals don't overlap
+        ctx.fillText(marker.label, x + 4, chartArea.top + 12 + index * 14);
       });
       ctx.restore();
     },
   };
 
   function drawChart(data) {
-    const withDay = data.range !== '24h';
-    const labels = data.points.map((point) => formatHour(new Date(point.time), withDay));
+    const labels = data.points.map((point) => pointLabel(new Date(point.time), data));
     const counts = data.points.map((point) => point.count);
-    const firstTime = new Date(data.points[0].time).getTime();
-    // each approval sits on the hour point it happened in
+    // each approval sits on the point (hour, day or month) it happened in: the last one starting before it
     const markers = data.updates.map((update) => ({
-      index: Math.floor((new Date(update.at).getTime() - firstTime) / HOUR_MS),
+      index: data.points.findLastIndex((point) => new Date(point.time) <= new Date(update.at)),
       label: updateLabel(update),
     }));
 
@@ -72,7 +83,7 @@
       data: {
         labels,
         datasets: [{
-          label: 'Views per hour',
+          label: 'Views per ' + data.step,
           data: counts,
           borderColor: '#0b74de',
           backgroundColor: '#0b74de',
@@ -113,11 +124,12 @@
       const row = document.createElement('tr');
       const at = new Date(update.at);
       row.appendChild(cell(at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + formatHour(at, false)));
-      row.appendChild(cell(updateLabel(update)));
-      row.appendChild(cell(update.before === null ? '—' : update.before + '/h'));
+      // older than the hourly history: compared day before against day after, so less exact
+      row.appendChild(cell(updateLabel(update) + (update.daily ? ' (daily)' : '')));
+      row.appendChild(cell(update.before === null ? '-' : update.before + '/h'));
       row.appendChild(cell(update.after + '/h' + (update.soFar ? ' (so far)' : '')));
       if (update.change === null) {
-        row.appendChild(cell('—'));
+        row.appendChild(cell('-'));
       } else {
         const sign = update.change > 0 ? '+' : '';
         row.appendChild(cell(sign + update.change + '%', update.change >= 0 ? 'change-up' : 'change-down'));
@@ -152,7 +164,7 @@
       drawChart(data);
       fillTable(data.updates);
       const period = data.range === 'all' ? ' since it was first published' : ' in the last ' + data.range;
-      message.textContent = data.totalViews + ' views' + period +
+      message.textContent = data.totalViews + ' views' + period + ', per ' + data.step +
         (data.updates.length === 0 ? ', no approvals in this range.' : '.');
       // keep the choice in the address bar, so a refresh or a shared link shows the same chart
       history.replaceState(null, '', '/impact?article=' + articleId + '&range=' + range);
@@ -176,9 +188,14 @@
     if (search.value.trim()) {
       query.set('q', search.value.trim());
     }
+    const searchId = ++latestSearch;
     try {
       const response = await fetch('/api/articles?' + query);
       const data = await response.json();
+      // a newer search was sent meanwhile, its answer wins
+      if (searchId !== latestSearch) {
+        return;
+      }
       results.replaceChildren();
       (data.articles || []).forEach((article) => {
         const item = document.createElement('li');
@@ -196,7 +213,9 @@
       }
       results.hidden = false;
     } catch (err) {
-      message.textContent = 'Could not search articles, check your connection';
+      if (searchId === latestSearch) {
+        message.textContent = 'Could not search articles, check your connection';
+      }
     }
   }
 
@@ -222,8 +241,9 @@
 
   // a shared link may carry a range too
   const linkedRange = new URLSearchParams(location.search).get('range');
-  if (linkedRange && page.querySelector('[data-range="' + linkedRange + '"]')) {
-    page.querySelector('[data-range="' + linkedRange + '"]').click();
+  const linkedButton = Array.from(rangeButtons).find((button) => button.dataset.range === linkedRange);
+  if (linkedButton) {
+    linkedButton.click();
   } else {
     load();
   }

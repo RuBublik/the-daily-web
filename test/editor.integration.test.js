@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const Comment = require('../models/Comment');
 const ViewStat = require('../models/ViewStat');
+const DailyViewStat = require('../models/DailyViewStat');
 const { approveArticle, returnArticle, editDraft, editLive, deleteArticle } = require('../controllers/editorController');
 
 // The editor's approve / return flow against a real MongoDB.
@@ -213,4 +214,5 @@ test('deleting an article also deletes its comments and view statistics', { skip
   assert.equal(await Article.countDocuments({ _id: id }), 0);
   assert.equal(await Comment.countDocuments({ article: id }), 0);
   assert.equal(await ViewStat.countDocuments({ article: id }), 0);
+  assert.equal(await DailyViewStat.countDocuments({ article: id }), 0);
 });

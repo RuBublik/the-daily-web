@@ -34,7 +34,7 @@ Target folder layout — each folder is created together with its first real fil
 the-daily-web/
 ├── app.js
 ├── config/       # e.g. db.js (Mongoose connection)
-├── models/       # User, Article, Comment, ViewStat (see Data models below)
+├── models/       # User, Article, Comment, ViewStat, DailyViewStat (see Data models below)
 ├── controllers/
 ├── routes/
 ├── middleware/   # auth / role checks, request helpers (viewedArticles.js)
@@ -51,7 +51,7 @@ the-daily-web/
 1. **Users** — reporters and editors (guests are unauthenticated, no user record needed for them). Username/password auth; passwords must be hashed, never stored or recoverable in plain text.
 2. **Articles** — see workflow below for required fields (state, category, title, image, body, author, timestamps, current published version vs. pending version).
 3. **Comments** — belong to an article; must support the comment rate limit below.
-4. **View/analytics data** — records of article views over time, granular enough to drive the per-article views-over-time chart, including timestamps of when an editor approved/published an update to that article (so the graph can mark before/after behavior around each update). Design this to remain performant with thousands of articles and many concurrent readers — an approach that aggregates/buckets view events rather than storing every raw hit unbounded is worth considering.
+4. **View/analytics data** — records of article views over time, granular enough to drive the per-article views-over-time chart, including timestamps of when an editor approved/published an update to that article (so the graph can mark before/after behavior around each update). Design this to remain performant with thousands of articles and many concurrent readers — an approach that aggregates/buckets view events rather than storing every raw hit unbounded is worth considering. Implemented as hourly buckets (`ViewStat`, deleted after 90 days by a TTL index) plus daily buckets kept forever (`DailyViewStat`). Each view `$inc`s both. The chart's step (hour / day / month) is chosen by the range length, so it never has more than about 750 points.
 
 Every model needs full CRUD (Create, Read/List/Search, Update, Delete), and search must work on at least one meaningful field (e.g. article title).
 

@@ -1,11 +1,17 @@
 // Impact Analytics: views of one article over time, and how they changed around each approval.
-// Views are stored in hourly buckets (models/ViewStat.js).
+// Views are stored in hourly buckets for the last 90 days (models/ViewStat.js) and in daily
+// buckets forever (models/DailyViewStat.js). A chart never has more than about 750 points:
+// up to 31 days it shows hours, up to 2 years days, and beyond that months.
 
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ViewStat = require('../models/ViewStat');
+const DailyViewStat = require('../models/DailyViewStat');
 
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const MAX_HOURLY_SPAN = 31 * DAY_MS;
+const MAX_DAILY_SPAN = 2 * 365 * DAY_MS;
 // how far back each range button looks, in hours ("all" = since the first publish)
 const RANGES = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24, all: null };
 const RANGE_LABELS = { '24h': '24h', '7d': '7d', '30d': '30d', all: 'All time' };
@@ -23,13 +29,46 @@ function parseRange(range) {
   return { range };
 }
 
-// one point per hour from `from` up to and including the hour of `to`; hours nobody viewed are 0
-function hourlySeries(buckets, from, to) {
-  const counts = new Map(buckets.map((bucket) => [bucket.hour.getTime(), bucket.count]));
+// the chart's step for a range from `from` to `to`
+function chooseStep(from, to) {
+  const span = to.getTime() - from.getTime();
+  if (span <= MAX_HOURLY_SPAN) {
+    return 'hour';
+  }
+  return span <= MAX_DAILY_SPAN ? 'day' : 'month';
+}
+
+// one point per step from `from` up to and including `to`; `field` is the bucket's time field.
+// buckets nobody viewed don't exist, so those points are 0
+function fillSeries(buckets, field, from, to, stepMs) {
+  const counts = new Map(buckets.map((bucket) => [bucket[field].getTime(), bucket.count]));
   const series = [];
-  for (let t = from.getTime(); t <= to.getTime(); t += HOUR_MS) {
+  for (let t = from.getTime(); t <= to.getTime(); t += stepMs) {
     series.push({ time: new Date(t), count: counts.get(t) || 0 });
   }
+  return series;
+}
+
+function hourlySeries(buckets, from, to) {
+  return fillSeries(buckets, 'hour', from, to, HOUR_MS);
+}
+
+function dailySeries(buckets, from, to) {
+  return fillSeries(buckets, 'day', from, to, DAY_MS);
+}
+
+// the daily points added up per calendar month (UTC); a point's time is the 1st of its month
+function monthlySeries(daily) {
+  const series = [];
+  daily.forEach((point) => {
+    const month = new Date(Date.UTC(point.time.getUTCFullYear(), point.time.getUTCMonth(), 1));
+    const last = series.at(-1);
+    if (last && last.time.getTime() === month.getTime()) {
+      last.count += point.count;
+    } else {
+      series.push({ time: month, count: point.count });
+    }
+  });
   return series;
 }
 
@@ -45,6 +84,9 @@ function average(series) {
 // the hour the approval happened in counts as "after". `hourly` must cover all the hours needed.
 // `firstPublish` tells which approval was the first publish (it may be outside `approvals`)
 function summarizeUpdates(approvals, hourly, now, firstPublish) {
+  if (approvals.length === 0) {
+    return [];
+  }
   const nowHour = ViewStat.startOfHour(now).getTime();
   const firstPublishHour = ViewStat.startOfHour(firstPublish).getTime();
 
@@ -67,6 +109,31 @@ function summarizeUpdates(approvals, hourly, now, firstPublish) {
     // a change in percent means nothing when there were no views before
     const change = before > 0 ? Math.round(((after - before) / before) * 100) : null;
     return { at, first: false, before, after, change, soFar };
+  });
+}
+
+// the same comparison for approvals older than the hourly retention, from the daily totals:
+// the whole day before the approval's day against the whole day after it, divided by 24 so it is
+// still views per hour. `daily` must cover those days
+function summarizeDailyUpdates(approvals, daily, firstPublish) {
+  if (approvals.length === 0) {
+    return [];
+  }
+  const counts = new Map(daily.map((point) => [point.time.getTime(), point.count]));
+  const perHour = (day) => Math.round(((counts.get(day) || 0) / 24) * 10) / 10;
+  const firstPublishDay = DailyViewStat.startOfDay(firstPublish).getTime();
+
+  return approvals.map((at) => {
+    const day = DailyViewStat.startOfDay(at).getTime();
+    const after = perHour(day + DAY_MS);
+    // the first publish, or the day before was before the first publish: nothing to compare with
+    if (at.getTime() === firstPublish.getTime() || day - DAY_MS < firstPublishDay) {
+      const first = at.getTime() === firstPublish.getTime();
+      return { at, first, before: null, after, change: null, soFar: false, daily: true };
+    }
+    const before = perHour(day - DAY_MS);
+    const change = before > 0 ? Math.round(((after - before) / before) * 100) : null;
+    return { at, first: false, before, after, change, soFar: false, daily: true };
   });
 }
 
@@ -98,19 +165,48 @@ async function getStats(req, res) {
     } else {
       from = new Date(nowHour.getTime() - (RANGES[range] - 1) * HOUR_MS);
     }
+    const step = chooseStep(from, nowHour);
     // markers outside the range can't be drawn, so only these approvals are summarized
     const approvals = article.publishHistory.filter((at) => at >= from);
+    // approvals whose 24 hours before are still in the hourly buckets get the exact comparison,
+    // older ones the daily one. (in an hourly range every approval is recent)
+    const hourlyKeptFrom = nowHour.getTime() - (ViewStat.RETENTION_DAYS - 1) * DAY_MS;
+    const isRecent = (at) => ViewStat.startOfHour(at).getTime() - COMPARE_HOURS * HOUR_MS >= hourlyKeptFrom;
+    const recent = approvals.filter(isRecent);
+    const old = approvals.filter((at) => !isRecent(at));
 
-    // the comparison needs 24 hours before the earliest approval shown, which may be before the range
-    const queryFrom = approvals.length > 0
-      ? new Date(Math.min(from.getTime(), ViewStat.startOfHour(approvals[0]).getTime() - COMPARE_HOURS * HOUR_MS))
-      : from;
-    const buckets = await ViewStat.find({ article: id, hour: { $gte: queryFrom, $lte: nowHour } })
-      .select('hour count')
-      .lean();
-    const hourly = hourlySeries(buckets, queryFrom, nowHour);
+    // hourly buckets: the chart of an hourly range, and 24 hours before the earliest recent approval
+    let hourly = [];
+    const hourlyStarts = [];
+    if (step === 'hour') {
+      hourlyStarts.push(from.getTime());
+    }
+    if (recent.length > 0) {
+      hourlyStarts.push(ViewStat.startOfHour(recent[0]).getTime() - COMPARE_HOURS * HOUR_MS);
+    }
+    if (hourlyStarts.length > 0) {
+      const hourlyFrom = new Date(Math.min(...hourlyStarts));
+      const buckets = await ViewStat.find({ article: id, hour: { $gte: hourlyFrom, $lte: nowHour } })
+        .select('hour count')
+        .lean();
+      hourly = hourlySeries(buckets, hourlyFrom, nowHour);
+    }
 
-    const updates = approvals.length > 0 ? summarizeUpdates(approvals, hourly, now, firstPublish) : [];
+    // daily buckets: the chart of a longer range, plus the day before it for the oldest approval
+    let daily = [];
+    if (step !== 'hour') {
+      const dailyFrom = new Date(DailyViewStat.startOfDay(from).getTime() - DAY_MS);
+      const today = DailyViewStat.startOfDay(now);
+      const buckets = await DailyViewStat.find({ article: id, day: { $gte: dailyFrom, $lte: today } })
+        .select('day count')
+        .lean();
+      daily = dailySeries(buckets, dailyFrom, today);
+    }
+
+    const updates = [
+      ...summarizeDailyUpdates(old, daily, firstPublish),
+      ...summarizeUpdates(recent, hourly, now, firstPublish),
+    ];
     // the approval's place in the whole history (0 = first publish, then update 1, 2, ...),
     // so the labels stay right when earlier approvals are outside the range
     const skipped = article.publishHistory.length - approvals.length;
@@ -118,12 +214,19 @@ async function getStats(req, res) {
       update.number = skipped + index;
     });
 
-    // the chart: one point per hour of the range
-    const points = hourly.filter((point) => point.time >= from);
+    // the chart: one point per step of the range
+    let points;
+    if (step === 'hour') {
+      points = hourly.filter((point) => point.time >= from);
+    } else {
+      const days = daily.filter((point) => point.time >= DailyViewStat.startOfDay(from));
+      points = step === 'day' ? days : monthlySeries(days);
+    }
 
     res.json({
       article: { _id: article._id, title: article.title || article.draft?.title || '(untitled)' },
       range,
+      step,
       totalViews: points.reduce((sum, point) => sum + point.count, 0),
       points,
       updates,
@@ -157,4 +260,16 @@ async function showImpact(req, res, next) {
   }
 }
 
-module.exports = { getStats, showImpact, parseRange, hourlySeries, summarizeUpdates, RANGES, COMPARE_HOURS };
+module.exports = {
+  getStats,
+  showImpact,
+  parseRange,
+  chooseStep,
+  hourlySeries,
+  dailySeries,
+  monthlySeries,
+  summarizeUpdates,
+  summarizeDailyUpdates,
+  RANGES,
+  COMPARE_HOURS,
+};

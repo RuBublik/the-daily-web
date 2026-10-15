@@ -3,12 +3,14 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ViewStat = require('../models/ViewStat');
+const DailyViewStat = require('../models/DailyViewStat');
 const { getStats } = require('../controllers/impactController');
 
 // The stats endpoint against a real MongoDB.
 // Skips when MONGO_URI isn't set, so it never blocks a normal `npm test` run.
 const skip = !process.env.MONGO_URI ? 'set MONGO_URI to run the live statistics test' : false;
 const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 const TEST_AUTHOR = 'Impact stats test';
 
 function mockRes() {
@@ -31,6 +33,7 @@ test('stats return every hour of the range and a before / after per approval', {
   t.after(async () => {
     const ids = (await Article.find({ authorName: TEST_AUTHOR }).select('_id').lean()).map((a) => a._id);
     await ViewStat.deleteMany({ article: { $in: ids } });
+    await DailyViewStat.deleteMany({ article: { $in: ids } });
     await Article.deleteMany({ authorName: TEST_AUTHOR });
     await mongoose.disconnect();
   });
@@ -103,11 +106,12 @@ test('stats of an article that was never published are not found', { skip }, asy
   assert.equal(res.statusCode, 404);
 });
 
-test('all time of an old article is still one point per hour', { skip }, async (t) => {
+test('all time of an article older than 31 days has one point per day', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
   t.after(async () => {
     const ids = (await Article.find({ authorName: TEST_AUTHOR }).select('_id').lean()).map((a) => a._id);
     await ViewStat.deleteMany({ article: { $in: ids } });
+    await DailyViewStat.deleteMany({ article: { $in: ids } });
     await Article.deleteMany({ authorName: TEST_AUTHOR });
     await mongoose.disconnect();
   });
@@ -125,13 +129,65 @@ test('all time of an old article is still one point per hour', { skip }, async (
     publishDate: firstPublish,
     publishHistory: [firstPublish],
   });
-  await ViewStat.insertMany([
-    { article: article._id, hour: firstPublish, count: 7 },
-    { article: article._id, hour: new Date(nowHour), count: 3 },
+  await DailyViewStat.insertMany([
+    { article: article._id, day: DailyViewStat.startOfDay(firstPublish), count: 7 },
+    { article: article._id, day: DailyViewStat.startOfDay(new Date()), count: 3 },
   ]);
 
   const res = mockRes();
   await getStats({ params: { id: article._id.toString() }, query: { range: 'all' } }, res);
-  assert.equal(res.body.points.length, 40 * 24 + 1);
+  assert.equal(res.body.step, 'day');
+  assert.equal(res.body.points.length, 41);
   assert.equal(res.body.totalViews, 10);
+
+  // the 30 days range is still hourly
+  const res30 = mockRes();
+  await getStats({ params: { id: article._id.toString() }, query: { range: '30d' } }, res30);
+  assert.equal(res30.body.step, 'hour');
+  assert.equal(res30.body.points.length, 30 * 24);
+});
+
+test('all time of an article years old has one point per month, and old updates are compared by day', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    const ids = (await Article.find({ authorName: TEST_AUTHOR }).select('_id').lean()).map((a) => a._id);
+    await DailyViewStat.deleteMany({ article: { $in: ids } });
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  // published 3 years ago, updated 2 years ago; only daily totals exist that far back
+  const today = DailyViewStat.startOfDay(new Date()).getTime();
+  const firstPublish = new Date(today - 3 * 365 * DAY + 9 * HOUR);
+  const update = new Date(today - 2 * 365 * DAY + 14 * HOUR);
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: TEST_AUTHOR,
+    title: 'Very old article',
+    summary: 'Summary',
+    category: 'News',
+    content: 'Body',
+    status: 'published',
+    publishDate: firstPublish,
+    publishHistory: [firstPublish, update],
+  });
+  const updateDay = DailyViewStat.startOfDay(update).getTime();
+  await DailyViewStat.insertMany([
+    { article: article._id, day: DailyViewStat.startOfDay(firstPublish), count: 100 },
+    { article: article._id, day: new Date(updateDay - DAY), count: 48 }, // 2 per hour
+    { article: article._id, day: new Date(updateDay + DAY), count: 144 }, // 6 per hour
+  ]);
+
+  const res = mockRes();
+  await getStats({ params: { id: article._id.toString() }, query: { range: 'all' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.step, 'month');
+  // 3 years of months, give or take the partial first and last month
+  assert.ok(res.body.points.length >= 36 && res.body.points.length <= 38, String(res.body.points.length));
+  assert.equal(res.body.totalViews, 292);
+  assert.equal(res.body.updates.length, 2);
+  assert.equal(res.body.updates[1].daily, true);
+  assert.equal(res.body.updates[1].before, 2);
+  assert.equal(res.body.updates[1].after, 6);
+  assert.equal(res.body.updates[1].change, 200);
 });

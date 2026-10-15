@@ -23,19 +23,22 @@
       <canvas id="impact-chart" role="img" aria-label="Views per hour, with a dashed line at every approved update"></canvas>
     </div>
 
-    <table class="impact-updates" id="impact-updates" hidden>
-      <caption>Average views per hour, 24 hours before and after each approval</caption>
-      <thead>
-        <tr>
-          <th>Approved</th>
-          <th></th>
-          <th>Before</th>
-          <th>After</th>
-          <th>Change</th>
-        </tr>
-      </thead>
-      <tbody id="impact-updates-body"></tbody>
-    </table>
+    <!-- scrolls sideways on a narrow screen instead of squeezing the columns, like the editor tables -->
+    <div class="editor-table-wrapper">
+      <table class="impact-updates" id="impact-updates" hidden>
+        <caption>Average views per hour, 24 hours before and after each approval</caption>
+        <thead>
+          <tr>
+            <th>Approved</th>
+            <th></th>
+            <th>Before</th>
+            <th>After</th>
+            <th>Change</th>
+          </tr>
+        </thead>
+        <tbody id="impact-updates-body"></tbody>
+      </table>
+    </div>
   </section>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <script src="/js/impact.js"></script>

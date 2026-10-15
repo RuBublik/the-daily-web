@@ -407,8 +407,8 @@ async function deleteArticle(req, res) {
     if (!deleted) {
       return articleNotFound(res);
     }
-    await Comment.deleteMany({ article: id });
-    await ViewStat.deleteMany({ article: id });
+    // its comments and view history go with it; independent collections, so both at once
+    await Promise.all([Comment.deleteMany({ article: id }), ViewStat.deleteMany({ article: id })]);
 
     console.log(`Article ${id} deleted by editor ${req.user.username}`);
     res.status(204).end();

@@ -82,7 +82,8 @@ async function getStats(req, res) {
   }
 
   try {
-    const article = await Article.findById(id).select('title draft.title publishHistory').lean();
+    // only a published article has views; same rule as the /impact page and recordView
+    const article = await Article.findOne({ _id: id, publishDate: { $ne: null } }).select('title draft.title publishHistory').lean();
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }

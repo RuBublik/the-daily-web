@@ -84,6 +84,25 @@ test('stats return every hour of the range and a before / after per approval', {
   assert.equal(resAll.body.totalViews, buckets.reduce((sum, b) => sum + b.count, 0));
 });
 
+test('stats of an article that was never published are not found', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: TEST_AUTHOR,
+    status: 'draft',
+    draft: { title: 'Never published', summary: 'Summary', category: 'News', content: 'Body' },
+  });
+
+  const res = mockRes();
+  await getStats({ params: { id: article._id.toString() }, query: {} }, res);
+  assert.equal(res.statusCode, 404);
+});
+
 test('all time of an old article is still one point per hour', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
   t.after(async () => {

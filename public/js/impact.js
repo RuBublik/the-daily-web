@@ -42,13 +42,14 @@
       ctx.fillStyle = '#dc2626';
       ctx.font = '12px sans-serif';
       ctx.setLineDash([6, 4]);
-      options.markers.forEach((marker) => {
+      options.markers.forEach((marker, index) => {
         const x = scales.x.getPixelForValue(marker.index);
         ctx.beginPath();
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
         ctx.stroke();
-        ctx.fillText(marker.label, x + 4, chartArea.top + 12);
+        // each label one line lower than the one before, so close approvals don't overlap
+        ctx.fillText(marker.label, x + 4, chartArea.top + 12 + index * 14);
       });
       ctx.restore();
     },

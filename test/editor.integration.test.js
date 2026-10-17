@@ -5,7 +5,15 @@ const Article = require('../models/Article');
 const Comment = require('../models/Comment');
 const ViewStat = require('../models/ViewStat');
 const DailyViewStat = require('../models/DailyViewStat');
-const { approveArticle, returnArticle, editDraft, editLive, deleteArticle } = require('../controllers/editorController');
+const {
+  approveArticle,
+  returnArticle,
+  editDraft,
+  editLive,
+  deleteArticle,
+  buildApprovalUpdate,
+  approvalFilter,
+} = require('../controllers/editorController');
 
 // The editor's approve / return flow against a real MongoDB.
 // Skips when MONGO_URI isn't set, so it never blocks a normal `npm test` run.
@@ -76,6 +84,48 @@ test('an update to a published article goes live only when the editor approves i
   res = mockRes();
   await returnArticle({ params: { id }, body: { note: 'Fix it' }, user: editor }, res);
   assert.equal(res.statusCode, 400);
+});
+
+test('approving never overwrites a draft edit that landed after the editor loaded the page', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: TEST_AUTHOR,
+    status: 'pending',
+    draft: { title: 'Stale title', summary: 'Stale summary', category: 'News', content: 'Stale body' },
+  });
+  const id = article._id.toString();
+
+  // the editor "opened the review page": this snapshot is what approveArticle would have read
+  const staleSnapshot = await Article.findById(id).lean();
+
+  // someone else's draft edit lands in the meantime, bumping lastUpdated
+  await editDraft(
+    { params: { id }, body: { title: 'Fresh title' }, user: editor },
+    mockRes(),
+  );
+
+  // approving against the stale snapshot must not match — uses the real exported filter, so this
+  // actually regression-tests approveArticle's own guard, not a copy of it
+  const staleResult = await Article.findOneAndUpdate(
+    approvalFilter(id, staleSnapshot),
+    buildApprovalUpdate(staleSnapshot, new Date()),
+    { returnDocument: 'after', runValidators: true }
+  );
+  assert.equal(staleResult, null, 'a stale lastUpdated must not match, or the fresh edit would be overwritten');
+
+  // the real endpoint, reading fresh, approves the up to date draft correctly
+  const res = mockRes();
+  await approveArticle({ params: { id }, user: editor }, res);
+  assert.equal(res.statusCode, 200);
+
+  const published = await Article.findById(id).lean();
+  assert.equal(published.title, 'Fresh title', 'the published title must be the latest edit, not the stale one');
 });
 
 test('returning keeps the draft for the reporter and the live version public', { skip }, async (t) => {

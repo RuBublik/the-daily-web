@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const {
   listComments,
   addComment,
+  updateComment,
+  deleteComment,
   wouldExceedRateLimit,
   RATE_LIMIT_COUNT,
 } = require('../controllers/commentController');
@@ -56,6 +58,57 @@ test('POST rejects an empty/whitespace-only text with 400', async () => {
     body: { authorName: 'Dana', text: '   ' },
   };
   await addComment(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('GET rejects a non-string q (e.g. ?q[]=x) with 400, no database needed', async () => {
+  const res = mockRes();
+  await listComments({ params: { articleId: validArticleId() }, query: { q: ['x'] } }, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('GET rejects a q over 100 characters with 400, no database needed', async () => {
+  const res = mockRes();
+  const req = { params: { articleId: validArticleId() }, query: { q: 'a'.repeat(101) } };
+  await listComments(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('PATCH rejects an invalid articleId or commentId with 400, no database needed', async () => {
+  const res = mockRes();
+  await updateComment(
+    { params: { articleId: 'not-an-id', commentId: validArticleId() }, body: { text: 'hi' } },
+    res,
+  );
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('PATCH rejects an empty/whitespace-only text with 400, no database needed', async () => {
+  const res = mockRes();
+  const req = {
+    params: { articleId: validArticleId(), commentId: validArticleId() },
+    body: { text: '   ' },
+  };
+  await updateComment(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('PATCH rejects text over 1000 characters with 400, no database needed', async () => {
+  const res = mockRes();
+  const req = {
+    params: { articleId: validArticleId(), commentId: validArticleId() },
+    body: { text: 'a'.repeat(1001) },
+  };
+  await updateComment(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('DELETE rejects an invalid articleId or commentId with 400, no database needed', async () => {
+  const res = mockRes();
+  await deleteComment(
+    { params: { articleId: validArticleId(), commentId: 'not-an-id' } },
+    res,
+  );
   assert.strictEqual(res.statusCode, 400);
 });
 

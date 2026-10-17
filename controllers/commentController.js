@@ -9,21 +9,39 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 // Mongoose ValidationError reported as a 500
 const MAX_AUTHOR_NAME_LENGTH = 60;
 const MAX_TEXT_LENGTH = 1000;
+const MAX_SEARCH_LENGTH = 100;
 
 function wouldExceedRateLimit(recentCount) {
   return recentCount >= RATE_LIMIT_COUNT;
 }
 
-// GET /api/articles/:articleId/comments
+// same approach as articleController's title search
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// GET /api/articles/:articleId/comments?q=
 async function listComments(req, res) {
   const { articleId } = req.params;
+  const { q } = req.query || {};
 
   if (!mongoose.isValidObjectId(articleId)) {
     return res.status(400).json({ error: 'Invalid article id' });
   }
+  if (q !== undefined && typeof q !== 'string') {
+    return res.status(400).json({ error: 'Invalid query parameter' });
+  }
+  if (q !== undefined && q.length > MAX_SEARCH_LENGTH) {
+    return res.status(400).json({ error: `Search text must be ${MAX_SEARCH_LENGTH} characters or fewer` });
+  }
+
+  const filter = { article: articleId };
+  if (q && q.trim()) {
+    filter.text = { $regex: escapeRegex(q.trim()), $options: 'i' };
+  }
 
   try {
-    const comments = await Comment.find({ article: articleId })
+    const comments = await Comment.find(filter)
       .sort({ createdAt: -1 })
       .lean();
     res.json(comments);
@@ -82,4 +100,62 @@ async function addComment(req, res) {
   }
 }
 
-module.exports = { listComments, addComment, wouldExceedRateLimit, RATE_LIMIT_COUNT };
+// PATCH /api/articles/:articleId/comments/:commentId — editor only, for moderation
+async function updateComment(req, res) {
+  const { articleId, commentId } = req.params;
+  const { text } = req.body || {};
+
+  if (!mongoose.isValidObjectId(articleId) || !mongoose.isValidObjectId(commentId)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
+  if (typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Comment text is required' });
+  }
+  if (text.trim().length > MAX_TEXT_LENGTH) {
+    return res.status(400).json({ error: `Comment text must be ${MAX_TEXT_LENGTH} characters or fewer` });
+  }
+
+  try {
+    const comment = await Comment.findOneAndUpdate(
+      { _id: commentId, article: articleId },
+      { text: text.trim() },
+      { new: true }
+    );
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    res.json(comment);
+  } catch (err) {
+    console.error('Failed to update comment:', err);
+    res.status(500).json({ error: 'Could not update comment' });
+  }
+}
+
+// DELETE /api/articles/:articleId/comments/:commentId — editor only, for moderation
+async function deleteComment(req, res) {
+  const { articleId, commentId } = req.params;
+
+  if (!mongoose.isValidObjectId(articleId) || !mongoose.isValidObjectId(commentId)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
+
+  try {
+    const comment = await Comment.findOneAndDelete({ _id: commentId, article: articleId });
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    res.status(204).end();
+  } catch (err) {
+    console.error('Failed to delete comment:', err);
+    res.status(500).json({ error: 'Could not delete comment' });
+  }
+}
+
+module.exports = {
+  listComments,
+  addComment,
+  updateComment,
+  deleteComment,
+  wouldExceedRateLimit,
+  RATE_LIMIT_COUNT,
+};

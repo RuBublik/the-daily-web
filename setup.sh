@@ -2,10 +2,11 @@
 #
 # setup.sh — get a fresh clone of the-daily-web running.
 #
-#   ./setup.sh          install dependencies and create .env
+#   ./setup.sh          install dependencies, create .env and seed the local database
 #   ./setup.sh --help   show this message
 #
-# Safe to re-run. Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
+# Never overwrites an existing .env, only adds JWT_SECRET if it is missing.
+# Every run resets the database to the demo data (npm run seed).
 
 set -euo pipefail
 
@@ -19,7 +20,7 @@ ok()  { printf '  [%sV%s] %s\n' "$GREEN" "$RESET" "$1"; }
 die() { printf '\n  [%sX%s] %s\n\n' "$RED" "$RESET" "$1" >&2; exit 1; }
 
 case "${1:-}" in
-  -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   "")        ;;
   *)         die "Unknown option: $1  (try --help)" ;;
 esac
@@ -81,10 +82,14 @@ Next:
 EOF
 
 
-if npm run seed >/dev/null 2>&1; then
-  ok "database seeded successfully"
+# fills the local database with the demo data from scratch (a non-local MONGO_URI is refused)
+if seed_output=$(npm run seed 2>&1); then
+  ok "database seeded with the demo data"
+  printf '\nSetup completed successfully!\n\n'
 else
-  printf '  [%s!%s] Could not seed database — make sure MongoDB is running, then run: npm run seed\n' "$RED" "$RESET"
+  # show the seed's own reason, e.g. MongoDB not running, or a non-local MONGO_URI; else its last line
+  reason=$(printf '%s\n' "$seed_output" | grep 'Seeding failed' | tail -1)
+  [ -n "$reason" ] || reason=$(printf '%s\n' "$seed_output" | grep -v '^[[:space:]]*$' | tail -1)
+  printf '  [%s!%s] %s\n' "$RED" "$RESET" "$reason"
+  printf '\nSetup finished, but the database was not seeded. Fix the above and run: npm run seed\n\n'
 fi
-
-printf '\nSetup completed successfully!\n\n'

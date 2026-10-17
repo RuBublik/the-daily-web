@@ -13,8 +13,9 @@ College assignment - news website.
 ./setup.sh
 ```
 
-Checks your Node version, installs dependencies, and creates `.env` from
-`.env.example`. Safe to re-run — it never overwrites an existing `.env`.
+Checks your Node version, installs dependencies, creates `.env` from
+`.env.example` (an existing `.env` is never overwritten) and seeds the local
+database. Every run resets the local database to the demo data.
 
 Then point `MONGO_URI` in `.env` at a database. Remember to include the database
 name in the path, otherwise Mongoose silently uses one called `test`.
@@ -145,7 +146,18 @@ Actions on the review page (`public/js/editorArticle.js`). Approve and return ap
 
 Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
 
-To try it, log in at `/auth/login` as an editor user (created by `npm run seed`).
+To try it, log in at `/auth/login` as the editor `pepe` (created by `npm run seed`).
+
+### Impact Analytics
+
+Only for editors (`requireRole('editor')`), under the **Impact** tab or the **View impact** button on an article's review page, which opens it with that article selected.
+
+- `GET /impact`: pick a published article (search, most viewed first) and a range (24h, 7d, 30d, all time). Chart.js draws the views over time, with a dashed line at every time an editor approved and published the article, so the view pattern before and after each update is visible on the same graph. A table under it gives, for every approval, the average views per hour in the 24 hours before and after it and the change in percent. Chart.js is served from `node_modules` (`/vendor/chart.js`), and the markers are a small plugin of our own (`public/js/impact.js`).
+- `GET /api/articles/:id/stats?range=24h|7d|30d|all`: the data for the chart: one point per step of the range (empty steps are `0`), the `step` itself, and a before / after summary per approval. The step depends on how long the range is, so a chart never has more than about 750 points: up to 31 days it is hours (the 24h, 7d and 30d buttons are always hourly), up to 2 years days, beyond that months.
+
+**How views are stored, for thousands of concurrent readers.** Every view is aggregated on write into an hourly bucket, `ViewStat { article, hour, count }`, one document per article per hour instead of one per view (MongoDB's bucket pattern). A view is a single atomic upsert with `$inc`, so concurrent readers never lose a count and no locking is needed. The unique index on `{ article, hour }` keeps exactly one bucket per hour (if two first views of an hour collide, the update is retried) and serves the chart query. The same view also goes, in parallel, into a daily bucket, `DailyViewStat { article, day, count }`, the same way.
+
+**How long they are kept, for articles years old.** Hourly buckets are kept for 90 days: a TTL index on `hour` makes MongoDB delete older ones by itself, with no job to run. Daily buckets are kept forever, at most 365 small documents per article per year. So the data needed for an hourly chart (31 days at most) is always there, and the whole history of an old article is still there per day. Monthly points are the daily ones added up. The before / after of an approval is computed from the hourly buckets while they exist. For an older approval it is the whole day before against the whole day after, per hour, and the table marks it "(daily)". The approval times come from `Article.publishHistory`. Deleting an article also deletes its statistics.
 
 ### Impact Analytics
 
@@ -170,10 +182,21 @@ Only for editors (`requireRole('editor')`), under the **Impact** tab or the **Vi
 
 ## Database Seeding
 
-To seed the database with initial sample data (e.g., test editors and reporters), run:
+`npm run seed` fills the database with the demo data (`scripts/seed.js`). It **wipes** users, articles, comments and view statistics, then creates:
+
+- users `pepe` (editor) and `yossi`, `noa`, `dan`, `maya` (reporters)
+- 530 articles in every category and every status: published (some updated several times, a few with an update in progress or waiting for approval), pending, drafts, and returned with an editor's note. 10 of the published ones are 1 to 3 years old, so the Impact chart's daily and monthly steps can be shown
+- comments on published articles
+- the views of every published article, changing after each update, so the Impact chart shows a before / after: hourly buckets (`ViewStat`) for the last 90 days, like the TTL index keeps them, and daily totals (`DailyViewStat`) for the whole history; each article's `viewCount` is the total
+
+The data is the same on every run, and all dates are relative to now. A full seed is about 10 MB. The articles are inserted before their comments and views, and an invalid document stops the seed, so nothing is dropped silently. If a step fails after the wipe, the error says what the database was left with.
 
 ```bash
-npm run seed
+npm run seed                   # local database (MONGO_URI in .env); users get the password q1w2e3r4
+npm run seed -- --force        # a non-local database such as Atlas: SEED_PASSWORD must be set in .env
+```
+
+On a local database every seeded user gets the password `q1w2e3r4`; on any other database it is `SEED_PASSWORD` from `.env`. Without `--force` the script refuses to touch a database that isn't on `localhost`. `./setup.sh` runs `npm run seed` too, so re-running setup resets the local database to the demo data.
 
 ## Authentication & Authorization
 
@@ -186,5 +209,5 @@ Ensure the following keys are defined in your `.env` file:
 
 ```env
 JWT_SECRET=your_jwt_secret_key
-editor_SIGNUP_CODE=your_optional_editor_registration_code
 COOKIE_NAME=token
+```

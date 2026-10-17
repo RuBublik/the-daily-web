@@ -41,7 +41,10 @@ async function listComments(req, res) {
   }
 
   try {
+    // .lean() returns plain objects, bypassing the schema's toJSON transform below,
+    // so guestId (the commenter's IP) has to be excluded here explicitly
     const comments = await Comment.find(filter)
+      .select('-guestId')
       .sort({ createdAt: -1 })
       .lean();
     res.json(comments);

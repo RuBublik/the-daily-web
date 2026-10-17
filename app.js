@@ -17,7 +17,6 @@ const { requireRole } = require('./middleware/auth');
 const indexRouter = require('./routes/index');
 const commentsRouter = require('./routes/comments');
 const articlesRouter = require('./routes/articles');
-const devTestRouter = require('./routes/devTest');
 const editorRouter = require('./routes/editor');
 const editorApiRouter = require('./routes/editorApi');
 
@@ -70,7 +69,6 @@ app.use('/impact', requireRole('editor'), impactRouter);
 // comments first: the more specific path must be matched before /api/articles
 app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
-app.use('/dev', devTestRouter);
 app.use('/editor', requireRole('editor'), editorRouter);
 app.use('/api/editor', requireRole('editor'), editorApiRouter);
 app.use('/auth', authRoutes);

@@ -43,6 +43,9 @@
     return update.first ? 'Published' : 'Update ' + update.number;
   }
 
+  // how many lines of approval labels the chart has at most
+  const MARKER_ROWS = 4;
+
   // Chart.js plugin of our own: a dashed vertical line and a label at every approval
   const approvalMarkers = {
     id: 'approvalMarkers',
@@ -53,14 +56,26 @@
       ctx.fillStyle = '#dc2626';
       ctx.font = '12px sans-serif';
       ctx.setLineDash([6, 4]);
-      options.markers.forEach((marker, index) => {
+      // where the last label on each line ends, in pixels; markers come left to right
+      const rowEnds = Array(MARKER_ROWS).fill(-Infinity);
+      options.markers.forEach((marker) => {
         const x = scales.x.getPixelForValue(marker.index);
         ctx.beginPath();
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
         ctx.stroke();
-        // each label one line lower than the one before, so close approvals don't overlap
-        ctx.fillText(marker.label, x + 4, chartArea.top + 12 + index * 14);
+
+        const width = ctx.measureText(marker.label).width;
+        // right of the line, or left of it when it would go past the chart's right edge
+        const textX = x + 4 + width > chartArea.right ? x - 4 - width : x + 4;
+        // a label goes on the first line where it doesn't overlap an earlier one (at most 4 lines),
+        // so only labels close together stack; if none is free, the line with the least overlap
+        let row = rowEnds.findIndex((end) => end + 4 <= textX);
+        if (row === -1) {
+          row = rowEnds.indexOf(Math.min(...rowEnds));
+        }
+        ctx.fillText(marker.label, textX, chartArea.top + 12 + row * 14);
+        rowEnds[row] = textX + width;
       });
       ctx.restore();
     },

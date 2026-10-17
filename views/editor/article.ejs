@@ -34,6 +34,12 @@
       <% if (canReview) { %>
         <button type="button" class="primary" id="approve-button">Approve and publish</button>
       <% } %>
+      <%# opens the Impact page with this article already selected %>
+      <% if (isPublic) { %>
+        <a class="button-link" href="/impact?article=<%= article._id %>">View impact</a>
+      <% } else { %>
+        <button type="button" disabled title="No views yet: this article was never published">View impact</button>
+      <% } %>
     </div>
 
     <% if (canReview) { %>

@@ -173,6 +173,13 @@ function missingToPublish(draft) {
   return REQUIRED_TO_PUBLISH.filter((field) => !draft || !String(draft[field] || '').trim());
 }
 
+// status makes a double click (or two editors) approve only once; lastUpdated makes sure we're
+// not about to publish a stale draft snapshot over one that was edited in the meantime (editDraft
+// bumps lastUpdated on every save) — either mismatching means someone else moved first
+function approvalFilter(id, article) {
+  return { _id: id, status: 'pending', lastUpdated: article.lastUpdated };
+}
+
 // approving copies the draft over the live version, and records when it happened for the views chart
 function buildApprovalUpdate(article, now) {
   const set = {
@@ -217,9 +224,8 @@ async function approveArticle(req, res) {
       return res.status(400).json({ error: `Cannot publish, missing: ${missing.join(', ')}` });
     }
 
-    // the status condition makes a double click (or two editors) approve only once
     const updated = await Article.findOneAndUpdate(
-      { _id: id, status: 'pending' },
+      approvalFilter(id, article),
       buildApprovalUpdate(article, new Date()),
       { returnDocument: 'after', runValidators: true }
     );
@@ -436,6 +442,7 @@ module.exports = {
   toListRow,
   missingToPublish,
   buildApprovalUpdate,
+  approvalFilter,
   parseVersionEdit,
   PAGE_SIZE,
 };

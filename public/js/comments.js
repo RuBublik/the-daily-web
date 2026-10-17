@@ -26,13 +26,18 @@
     return li;
   }
 
-  async function loadComments(articleId, listEl) {
+  // loads one page of comments; page 1 replaces the list, later pages append to it
+  async function loadComments(articleId, listEl, loadMoreBtn, page) {
     try {
-      const res = await fetch(`/api/articles/${articleId}/comments`);
+      const res = await fetch(`/api/articles/${articleId}/comments?page=${page}`);
       if (!res.ok) throw new Error('Failed to load comments');
-      const comments = await res.json();
-      listEl.innerHTML = '';
-      comments.forEach((comment) => listEl.appendChild(commentToListItem(comment)));
+      const data = await res.json();
+      if (page === 1) {
+        listEl.innerHTML = '';
+      }
+      data.comments.forEach((comment) => listEl.appendChild(commentToListItem(comment)));
+      loadMoreBtn.hidden = !data.hasMore;
+      loadMoreBtn.dataset.nextPage = page + 1;
     } catch (err) {
       console.error(err);
     }
@@ -45,8 +50,13 @@
     const errorEl = section.querySelector('#comments-error');
     const authorInput = section.querySelector('#comment-author');
     const textInput = section.querySelector('#comment-text');
+    const loadMoreBtn = section.querySelector('#comments-load-more');
 
-    loadComments(articleId, listEl);
+    loadComments(articleId, listEl, loadMoreBtn, 1);
+
+    loadMoreBtn.addEventListener('click', () => {
+      loadComments(articleId, listEl, loadMoreBtn, Number(loadMoreBtn.dataset.nextPage));
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -74,6 +74,20 @@ test('GET rejects a q over 100 characters with 400, no database needed', async (
   assert.strictEqual(res.statusCode, 400);
 });
 
+test('GET rejects a non-numeric page with 400, no database needed', async () => {
+  const res = mockRes();
+  const req = { params: { articleId: validArticleId() }, query: { page: 'two' } };
+  await listComments(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
+test('GET rejects page 0 with 400, no database needed', async () => {
+  const res = mockRes();
+  const req = { params: { articleId: validArticleId() }, query: { page: '0' } };
+  await listComments(req, res);
+  assert.strictEqual(res.statusCode, 400);
+});
+
 test('PATCH rejects an invalid articleId or commentId with 400, no database needed', async () => {
   const res = mockRes();
   await updateComment(

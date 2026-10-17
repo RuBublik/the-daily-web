@@ -406,6 +406,24 @@ body > footer p {
   border-radius: 8px;
 }
 
+.comments-load-more {
+  display: block;
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #0b74de;
+  border: 1px solid #0b74de;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comments-load-more:hover {
+  background: #eef6fe;
+}
+
 .comment-meta {
   font-size: 12px;
   color: #6b7280;

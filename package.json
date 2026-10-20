@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "cross-env NODE_ENV=production node ./bin/www",
+    "start": "node ./bin/www",
     "dev": "node --watch ./bin/www",
     "test": "node --test",
     "seed": "node scripts/seed.js"
@@ -20,8 +20,5 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.2",
     "morgan": "^1.12.1"
-  },
-  "devDependencies": {
-    "cross-env": "^10.1.0"
   }
 }

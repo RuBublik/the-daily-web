@@ -87,8 +87,14 @@ app.use('/api', function(err, req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  res.locals.error = isDevelopment ? err : {};
+
+  if (!isDevelopment) {
+    console.error(err);
+  }
 
   res.status(err.status || 500);
   res.render('error', { title: 'Error' });

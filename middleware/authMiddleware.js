@@ -30,7 +30,7 @@ async function resolveUser(req) {
   const userId = decoded.id || decoded.sub;
   if (!userId) return null;
 
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).lean();
   return user || null;
 }
 

@@ -3,13 +3,11 @@ require('dotenv').config({ quiet: true });
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
-const jwt = require('jsonwebtoken');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser')
 const authRoutes = require('./routes/authRoutes');
 const impactRouter = require('./routes/impact');
-const { User } = require('./models/user');
-const {getJwtSecret}=require('./middleware/authMiddleware')
+const { resolveUser } = require('./middleware/authMiddleware')
 
 const connectDB = require('./config/db');
 const { requireRole } = require('./middleware/auth');
@@ -42,13 +40,9 @@ const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
 app.use(async (req, res, next) => {
   try {
-    const token = req.cookies?.[COOKIE_NAME];
-    if (token) {
-      const decoded = jwt.verify(token, getJwtSecret());
-      const user = await User.findById(decoded.id).select('-passwordHash').lean();
-      if (user) {
-        req.user = user;
-      }
+    const user = await resolveUser(req);
+    if (user) {
+      req.user = user;
     }
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {

@@ -157,26 +157,15 @@ Only for editors (`requireRole('editor')`), under the **Impact** tab or the **Vi
 
 **How long they are kept, for articles years old.** Hourly buckets are kept for 90 days: a TTL index on `hour` makes MongoDB delete older ones by itself, with no job to run. Daily buckets are kept forever, at most 365 small documents per article per year. So the data needed for an hourly chart (31 days at most) is always there, and the whole history of an old article is still there per day. Monthly points are the daily ones added up. The before / after of an approval is computed from the hourly buckets while they exist. For an older approval it is the whole day before against the whole day after, per hour, and the table marks it "(daily)". The approval times come from `Article.publishHistory`. Deleting an article also deletes its statistics.
 
-### Impact Analytics
-
-Only for editors (`requireRole('editor')`), under the **Impact** tab or the **View impact** button on an article's review page, which opens it with that article selected.
-
-- `GET /impact`: pick a published article (search, most viewed first) and a range (24h, 7d, 30d, all time). Chart.js draws the views over time, with a dashed line at every time an editor approved and published the article, so the view pattern before and after each update is visible on the same graph. A table under it gives, for every approval, the average views per hour in the 24 hours before and after it and the change in percent. Chart.js is served from `node_modules` (`/vendor/chart.js`), and the markers are a small plugin of our own (`public/js/impact.js`).
-- `GET /api/articles/:id/stats?range=24h|7d|30d|all`: the data for the chart: one point per step of the range (empty steps are `0`), the `step` itself, and a before / after summary per approval. The step depends on how long the range is, so a chart never has more than about 750 points: up to 31 days it is hours (the 24h, 7d and 30d buttons are always hourly), up to 2 years days, beyond that months.
-
-**How views are stored, for thousands of concurrent readers.** Every view is aggregated on write into an hourly bucket, `ViewStat { article, hour, count }`, one document per article per hour instead of one per view (MongoDB's bucket pattern). A view is a single atomic upsert with `$inc`, so concurrent readers never lose a count and no locking is needed. The unique index on `{ article, hour }` keeps exactly one bucket per hour (if two first views of an hour collide, the update is retried) and serves the chart query. The same view also goes, in parallel, into a daily bucket, `DailyViewStat { article, day, count }`, the same way.
-
-**How long they are kept, for articles years old.** Hourly buckets are kept for 90 days: a TTL index on `hour` makes MongoDB delete older ones by itself, with no job to run. Daily buckets are kept forever, at most 365 small documents per article per year. So the data needed for an hourly chart (31 days at most) is always there, and the whole history of an old article is still there per day. Monthly points are the daily ones added up. The before / after of an approval is computed from the hourly buckets while they exist. For an older approval it is the whole day before against the whole day after, per hour, and the table marks it "(daily)". The approval times come from `Article.publishHistory`. Deleting an article also deletes its statistics.
-
 ## Database Schema
 
 ### Users Table
 | Column | Type | Description |
 | :--- | :--- | :--- |
 | `username` | String | Unique user name |
-| `password` | String | Hashed password |
+| `passwordHash` | String | Bcrypt hash of the password, never the password itself |
 | `role` | Enum | User role: `editor` or `reporter` |
-| `created_at` | Timestamp | Account creation date |
+| `createdAt` | Timestamp | Account creation date (from Mongoose's `timestamps: true`) |
 
 ## Database Seeding
 

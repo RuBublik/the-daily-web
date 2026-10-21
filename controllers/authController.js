@@ -5,6 +5,37 @@ const { getJwtSecret } = require('../middleware/authMiddleware');
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
+// Login attempts, by username. A small in-memory map is enough here: one server process,
+// and the point is just to slow down guessing against a known account (the single editor
+// account especially), not to survive a restart.
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+const loginAttempts = new Map();
+
+function isLockedOut(username) {
+  const entry = loginAttempts.get(username);
+  return Boolean(entry && entry.lockedUntil && entry.lockedUntil > Date.now());
+}
+
+// a failed attempt outside the current window starts a fresh count instead of piling on
+function recordFailedLogin(username) {
+  const now = Date.now();
+  const entry = loginAttempts.get(username);
+  if (!entry || now - entry.windowStart > LOGIN_WINDOW_MS) {
+    loginAttempts.set(username, { count: 1, windowStart: now, lockedUntil: null });
+    return;
+  }
+  entry.count += 1;
+  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
+    entry.lockedUntil = now + LOGIN_LOCKOUT_MS;
+  }
+}
+
+function clearLoginAttempts(username) {
+  loginAttempts.delete(username);
+}
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, username: user.username, role: user.role },
@@ -27,11 +58,11 @@ async function login(req, res, next) {
     const username = String(req.body.username || '').trim().toLowerCase();
     const password = String(req.body.password || '');
 
-    const renderError = (message) => {
-      return res.status(401).render('auth/login', {
+    const renderError = (message, status = 401) => {
+      return res.status(status).render('auth/login', {
         title: 'Login - The Daily Web',
         error: message,
-        username 
+        username
       });
     };
 
@@ -39,16 +70,23 @@ async function login(req, res, next) {
       return renderError('Username and password are required');
     }
 
+    if (isLockedOut(username)) {
+      return renderError('Too many failed login attempts. Try again in a few minutes.', 429);
+    }
+
     const user = await User.findOne({ username }).select('+passwordHash');
     if (!user) {
+      recordFailedLogin(username);
       return renderError('Invalid username or password');
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
+      recordFailedLogin(username);
       return renderError('Invalid username or password');
     }
 
+    clearLoginAttempts(username);
     const token = generateToken(user);
     sendTokenCookie(req, res, token);
     // an editor lands in the editor area, everyone else on the home page
@@ -78,5 +116,7 @@ async function logout(req, res, next) {
 module.exports = {
   login,
   currentUser,
-  logout
+  logout,
+  clearLoginAttempts,
+  MAX_LOGIN_ATTEMPTS,
 };

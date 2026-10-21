@@ -111,6 +111,30 @@ test('login fails when username is not found', async () => {
   User.findOne = originalFindOne;
 });
 
+test('login locks out a username after too many failed attempts', async (t) => {
+  const username = 'lockout_test_user';
+  t.after(() => controller.clearLoginAttempts(username));
+
+  const originalFindOne = User.findOne;
+  User.findOne = () => ({ select: () => Promise.resolve(null) });
+
+  for (let i = 0; i < controller.MAX_LOGIN_ATTEMPTS; i++) {
+    const res = mockResponse();
+    await controller.login({ body: { username, password: 'wrong' } }, res, (err) => { throw err; });
+    assert.strictEqual(res.statusCode, 401);
+    assert.strictEqual(res.renderData.error, 'Invalid username or password');
+  }
+
+  // the next attempt is locked out, even with the correct password this time
+  User.findOne = originalFindOne;
+  const lockedRes = mockResponse();
+  await controller.login({ body: { username, password: 'q1w2e3r4' } }, lockedRes, (err) => { throw err; });
+  assert.strictEqual(lockedRes.statusCode, 429);
+  assert.match(lockedRes.renderData.error, /Too many failed login attempts/);
+
+  User.findOne = originalFindOne;
+});
+
 test('authenticateJwt middleware blocks access (401) on invalid token', async () => {
   process.env.JWT_SECRET = 'secret';
   const req = {

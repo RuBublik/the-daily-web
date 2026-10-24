@@ -205,13 +205,70 @@ test('listComments paginates: 20 per page, hasMore until the last page', { skip 
   await listComments({ params: { articleId }, query: {} }, page1);
   assert.strictEqual(page1.statusCode, 200);
   assert.strictEqual(page1.body.comments.length, 20);
-  assert.strictEqual(page1.body.page, 1);
   assert.strictEqual(page1.body.hasMore, true);
 
+  // the next page starts after the last comment of the first one
+  const before = String(page1.body.comments[19]._id);
   const page2 = mockRes();
-  await listComments({ params: { articleId }, query: { page: '2' } }, page2);
+  await listComments({ params: { articleId }, query: { before } }, page2);
   assert.strictEqual(page2.statusCode, 200);
   assert.strictEqual(page2.body.comments.length, 5);
-  assert.strictEqual(page2.body.page, 2);
   assert.strictEqual(page2.body.hasMore, false);
+
+  // all 25, each exactly once
+  const ids = [...page1.body.comments, ...page2.body.comments].map((c) => String(c._id));
+  assert.strictEqual(new Set(ids).size, 25);
+});
+
+test('a comment posted between two pages does not show a comment twice', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const articleId = await createTestArticle();
+  const ip = '203.0.113.90';
+
+  t.after(async () => {
+    await Comment.deleteMany({ article: articleId });
+    await Article.deleteOne({ _id: articleId });
+    await mongoose.disconnect();
+  });
+
+  const start = Date.now() - 60 * 60 * 1000;
+  await Comment.insertMany(Array.from({ length: 25 }, (_, i) => ({
+    article: articleId,
+    guestId: `203.0.113.${i}`,
+    authorName: 'Dana',
+    text: `comment number ${i}`,
+    createdAt: new Date(start + i * 1000),
+  })));
+
+  const page1 = mockRes();
+  await listComments({ params: { articleId }, query: {} }, page1);
+
+  // the reader posts a comment, which goes to the top of the list
+  const addRes = mockRes();
+  await addComment({ ip, params: { articleId }, body: { authorName: 'Noa', text: 'new one' } }, addRes);
+  assert.strictEqual(addRes.statusCode, 201);
+
+  const page2 = mockRes();
+  const before = String(page1.body.comments[19]._id);
+  await listComments({ params: { articleId }, query: { before } }, page2);
+
+  const page1Ids = page1.body.comments.map((c) => String(c._id));
+  const page2Ids = page2.body.comments.map((c) => String(c._id));
+  assert.strictEqual(page2Ids.length, 5);
+  assert.ok(page2Ids.every((id) => !page1Ids.includes(id)));
+});
+
+test('listComments answers 404 when the before comment does not exist', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const articleId = await createTestArticle();
+
+  t.after(async () => {
+    await Article.deleteOne({ _id: articleId });
+    await mongoose.disconnect();
+  });
+
+  const res = mockRes();
+  const before = String(new mongoose.Types.ObjectId());
+  await listComments({ params: { articleId }, query: { before } }, res);
+  assert.strictEqual(res.statusCode, 404);
 });

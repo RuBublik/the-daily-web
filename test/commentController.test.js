@@ -74,16 +74,16 @@ test('GET rejects a q over 100 characters with 400, no database needed', async (
   assert.strictEqual(res.statusCode, 400);
 });
 
-test('GET rejects a non-numeric page with 400, no database needed', async () => {
+test('GET rejects a before that is not a comment id with 400, no database needed', async () => {
   const res = mockRes();
-  const req = { params: { articleId: validArticleId() }, query: { page: 'two' } };
+  const req = { params: { articleId: validArticleId() }, query: { before: '2' } };
   await listComments(req, res);
   assert.strictEqual(res.statusCode, 400);
 });
 
-test('GET rejects page 0 with 400, no database needed', async () => {
+test('GET rejects a non-string before (e.g. ?before[]=x) with 400, no database needed', async () => {
   const res = mockRes();
-  const req = { params: { articleId: validArticleId() }, query: { page: '0' } };
+  const req = { params: { articleId: validArticleId() }, query: { before: [validArticleId()] } };
   await listComments(req, res);
   assert.strictEqual(res.statusCode, 400);
 });

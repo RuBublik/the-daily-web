@@ -120,7 +120,7 @@ The page includes the comments section (see below) and the sidebar with the weat
 
 Every article page includes a comments section (list + add-comment form) that updates via Ajax, without a full page reload.
 
-- `GET /api/articles/:articleId/comments` — list comments for an article, newest first.
+- `GET /api/articles/:articleId/comments` — list comments for an article, newest first, 20 at a time: `{ comments, hasMore }`. "Load more" sends `?before=<id of the last comment shown>` and gets the comments after it. A cursor and not a page number, so a comment posted meanwhile (which goes to the top) never makes a comment show up twice.
 - `POST /api/articles/:articleId/comments` — add a comment: `{ authorName, text }`. No login required.
 - **Rate limiting**: a guest can post at most 3 comments per minute per IP address (`req.ip`), determined server-side so a client can't dodge it by claiming a different identity. Going over that returns `429` with an explanatory message — the request is never silently dropped and never crashes the server.
 - Comment text is rendered client-side with `textContent` (never `innerHTML`) to prevent XSS.

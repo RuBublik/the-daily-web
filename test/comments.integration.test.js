@@ -36,10 +36,17 @@ function mockRes() {
   };
 }
 
-// listComments/addComment now check the article actually exists, so every test needs a
-// real one behind its articleId instead of a made-up ObjectId
+// listComments/addComment check the article exists and is published, so every test needs a
+// real published one behind its articleId instead of a made-up ObjectId
 async function createTestArticle() {
-  const article = await Article.create({ author: new mongoose.Types.ObjectId(), authorName: 'Test Author' });
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: 'Test Author',
+    title: 'Test article',
+    summary: 'Test summary',
+    category: 'News',
+    publishDate: new Date(),
+  });
   return article._id.toString();
 }
 
@@ -149,6 +156,28 @@ test('listComments and addComment both 404 on a well-formed id with no article b
   const addRes = mockRes();
   await addComment(
     { ip: '203.0.113.50', params: { articleId }, body: { authorName: 'Dana', text: 'hi' } },
+    addRes,
+  );
+  assert.strictEqual(addRes.statusCode, 404);
+});
+
+test('listComments and addComment 404 on an article that was never published', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const draft = await Article.create({ author: new mongoose.Types.ObjectId(), authorName: 'Test Author' });
+  const articleId = draft._id.toString();
+
+  t.after(async () => {
+    await Article.deleteOne({ _id: articleId });
+    await mongoose.disconnect();
+  });
+
+  const listRes = mockRes();
+  await listComments({ params: { articleId }, query: {} }, listRes);
+  assert.strictEqual(listRes.statusCode, 404);
+
+  const addRes = mockRes();
+  await addComment(
+    { ip: '203.0.113.51', params: { articleId }, body: { authorName: 'Dana', text: 'hi' } },
     addRes,
   );
   assert.strictEqual(addRes.statusCode, 404);

@@ -55,7 +55,8 @@ async function listComments(req, res) {
   }
 
   try {
-    if (!(await Article.exists({ _id: articleId }))) {
+    // only a published article has public comments; same rule as the public article page
+    if (!(await Article.exists({ _id: articleId, publishDate: { $ne: null } }))) {
       return res.status(404).json({ error: 'Article not found' });
     }
 
@@ -102,7 +103,8 @@ async function addComment(req, res) {
   }
 
   try {
-    if (!(await Article.exists({ _id: articleId }))) {
+    // only a published article has public comments; same rule as the public article page
+    if (!(await Article.exists({ _id: articleId, publishDate: { $ne: null } }))) {
       return res.status(404).json({ error: 'Article not found' });
     }
 

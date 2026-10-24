@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const Comment = require('../models/Comment');
+const Article = require('../models/Article');
 const {
   addComment,
   listComments,
@@ -35,14 +36,29 @@ function mockRes() {
   };
 }
 
+// listComments/addComment check the article exists and is published, so every test needs a
+// real published one behind its articleId instead of a made-up ObjectId
+async function createTestArticle() {
+  const article = await Article.create({
+    author: new mongoose.Types.ObjectId(),
+    authorName: 'Test Author',
+    title: 'Test article',
+    summary: 'Test summary',
+    category: 'News',
+    publishDate: new Date(),
+  });
+  return article._id.toString();
+}
+
 test('a guest is blocked after 3 comments within a minute from the same IP', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
-  const articleId = new mongoose.Types.ObjectId().toString();
+  const articleId = await createTestArticle();
   // a made-up but unique-per-run "IP" so repeat test runs don't see each other's counts
   const ip = `203.0.113.${Date.now() % 256}`;
 
   t.after(async () => {
     await Comment.deleteMany({ guestId: ip });
+    await Article.deleteOne({ _id: articleId });
     await mongoose.disconnect();
   });
 
@@ -65,11 +81,12 @@ test('a guest is blocked after 3 comments within a minute from the same IP', { s
 
 test('search filters to comments whose text matches, case-insensitively', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
-  const articleId = new mongoose.Types.ObjectId().toString();
+  const articleId = await createTestArticle();
   const ip = `203.0.113.${(Date.now() + 1) % 256}`;
 
   t.after(async () => {
     await Comment.deleteMany({ article: articleId });
+    await Article.deleteOne({ _id: articleId });
     await mongoose.disconnect();
   });
 
@@ -85,17 +102,18 @@ test('search filters to comments whose text matches, case-insensitively', { skip
   const res = mockRes();
   await listComments({ params: { articleId }, query: { q: 'wonderful' } }, res);
   assert.strictEqual(res.statusCode, 200);
-  assert.strictEqual(res.body.length, 1);
-  assert.match(res.body[0].text, /wonderful/i);
+  assert.strictEqual(res.body.comments.length, 1);
+  assert.match(res.body.comments[0].text, /wonderful/i);
 });
 
 test('an editor can update and then delete a comment; deleting it again is a 404', { skip }, async (t) => {
   await mongoose.connect(process.env.MONGO_URI);
-  const articleId = new mongoose.Types.ObjectId().toString();
+  const articleId = await createTestArticle();
   const ip = `203.0.113.${(Date.now() + 2) % 256}`;
 
   t.after(async () => {
     await Comment.deleteMany({ article: articleId });
+    await Article.deleteOne({ _id: articleId });
     await mongoose.disconnect();
   });
 
@@ -121,4 +139,79 @@ test('an editor can update and then delete a comment; deleting it again is a 404
   const secondDeleteRes = mockRes();
   await deleteComment({ params: { articleId, commentId } }, secondDeleteRes);
   assert.strictEqual(secondDeleteRes.statusCode, 404);
+});
+
+test('listComments and addComment both 404 on a well-formed id with no article behind it', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const articleId = new mongoose.Types.ObjectId().toString(); // valid format, nothing created
+
+  t.after(async () => {
+    await mongoose.disconnect();
+  });
+
+  const listRes = mockRes();
+  await listComments({ params: { articleId }, query: {} }, listRes);
+  assert.strictEqual(listRes.statusCode, 404);
+
+  const addRes = mockRes();
+  await addComment(
+    { ip: '203.0.113.50', params: { articleId }, body: { authorName: 'Dana', text: 'hi' } },
+    addRes,
+  );
+  assert.strictEqual(addRes.statusCode, 404);
+});
+
+test('listComments and addComment 404 on an article that was never published', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const draft = await Article.create({ author: new mongoose.Types.ObjectId(), authorName: 'Test Author' });
+  const articleId = draft._id.toString();
+
+  t.after(async () => {
+    await Article.deleteOne({ _id: articleId });
+    await mongoose.disconnect();
+  });
+
+  const listRes = mockRes();
+  await listComments({ params: { articleId }, query: {} }, listRes);
+  assert.strictEqual(listRes.statusCode, 404);
+
+  const addRes = mockRes();
+  await addComment(
+    { ip: '203.0.113.51', params: { articleId }, body: { authorName: 'Dana', text: 'hi' } },
+    addRes,
+  );
+  assert.strictEqual(addRes.statusCode, 404);
+});
+
+test('listComments paginates: 20 per page, hasMore until the last page', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  const articleId = await createTestArticle();
+
+  t.after(async () => {
+    await Comment.deleteMany({ article: articleId });
+    await Article.deleteOne({ _id: articleId });
+    await mongoose.disconnect();
+  });
+
+  const comments = Array.from({ length: 25 }, (_, i) => ({
+    article: articleId,
+    guestId: `203.0.113.${i}`,
+    authorName: 'Dana',
+    text: `comment number ${i}`,
+  }));
+  await Comment.insertMany(comments);
+
+  const page1 = mockRes();
+  await listComments({ params: { articleId }, query: {} }, page1);
+  assert.strictEqual(page1.statusCode, 200);
+  assert.strictEqual(page1.body.comments.length, 20);
+  assert.strictEqual(page1.body.page, 1);
+  assert.strictEqual(page1.body.hasMore, true);
+
+  const page2 = mockRes();
+  await listComments({ params: { articleId }, query: { page: '2' } }, page2);
+  assert.strictEqual(page2.statusCode, 200);
+  assert.strictEqual(page2.body.comments.length, 5);
+  assert.strictEqual(page2.body.page, 2);
+  assert.strictEqual(page2.body.hasMore, false);
 });

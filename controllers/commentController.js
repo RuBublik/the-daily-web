@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Comment = require('../models/Comment');
+const Article = require('../models/Article');
 
 const RATE_LIMIT_COUNT = 3;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -10,6 +11,9 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_AUTHOR_NAME_LENGTH = 60;
 const MAX_TEXT_LENGTH = 1000;
 const MAX_SEARCH_LENGTH = 100;
+// same page size and cap as articleController, for the same reason
+const PAGE_SIZE = 20;
+const MAX_PAGE = 1000;
 
 function wouldExceedRateLimit(recentCount) {
   return recentCount >= RATE_LIMIT_COUNT;
@@ -20,10 +24,10 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// GET /api/articles/:articleId/comments?q=
+// GET /api/articles/:articleId/comments?q=&page=
 async function listComments(req, res) {
   const { articleId } = req.params;
-  const { q } = req.query || {};
+  const { q, page } = req.query || {};
 
   if (!mongoose.isValidObjectId(articleId)) {
     return res.status(400).json({ error: 'Invalid article id' });
@@ -34,6 +38,16 @@ async function listComments(req, res) {
   if (q !== undefined && q.length > MAX_SEARCH_LENGTH) {
     return res.status(400).json({ error: `Search text must be ${MAX_SEARCH_LENGTH} characters or fewer` });
   }
+  let pageNum = 1;
+  if (page !== undefined) {
+    if (typeof page !== 'string' || !/^\d+$/.test(page)) {
+      return res.status(400).json({ error: 'page must be a positive whole number' });
+    }
+    pageNum = Number(page);
+    if (pageNum < 1 || pageNum > MAX_PAGE) {
+      return res.status(400).json({ error: `page must be between 1 and ${MAX_PAGE}` });
+    }
+  }
 
   const filter = { article: articleId };
   if (q && q.trim()) {
@@ -41,13 +55,25 @@ async function listComments(req, res) {
   }
 
   try {
+    // only a published article has public comments; same rule as the public article page
+    if (!(await Article.exists({ _id: articleId, publishDate: { $ne: null } }))) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
     // .lean() returns plain objects, bypassing the schema's toJSON transform below,
     // so guestId (the commenter's IP) has to be excluded here explicitly
     const comments = await Comment.find(filter)
       .select('-guestId')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((pageNum - 1) * PAGE_SIZE)
+      .limit(PAGE_SIZE + 1)
       .lean();
-    res.json(comments);
+
+    const hasMore = comments.length > PAGE_SIZE;
+    if (hasMore) {
+      comments.pop();
+    }
+    res.json({ comments, page: pageNum, hasMore });
   } catch (err) {
     console.error('Failed to list comments:', err);
     res.status(500).json({ error: 'Could not load comments' });
@@ -77,6 +103,11 @@ async function addComment(req, res) {
   }
 
   try {
+    // only a published article has public comments; same rule as the public article page
+    if (!(await Article.exists({ _id: articleId, publishDate: { $ne: null } }))) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
     const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
     const recentCount = await Comment.countDocuments({
       guestId,

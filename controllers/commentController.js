@@ -59,7 +59,10 @@ async function listComments(req, res) {
       return res.status(404).json({ error: 'Article not found' });
     }
 
+    // .lean() returns plain objects, bypassing the schema's toJSON transform below,
+    // so guestId (the commenter's IP) has to be excluded here explicitly
     const comments = await Comment.find(filter)
+      .select('-guestId')
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * PAGE_SIZE)
       .limit(PAGE_SIZE + 1)

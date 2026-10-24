@@ -3,13 +3,11 @@ require('dotenv').config({ quiet: true });
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
-const jwt = require('jsonwebtoken');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser')
 const authRoutes = require('./routes/authRoutes');
 const impactRouter = require('./routes/impact');
-const { User } = require('./models/user');
-const {getJwtSecret}=require('./middleware/authMiddleware')
+const { resolveUser } = require('./middleware/authMiddleware')
 
 const connectDB = require('./config/db');
 const { requireRole } = require('./middleware/auth');
@@ -19,6 +17,9 @@ const commentsRouter = require('./routes/comments');
 const articlesRouter = require('./routes/articles');
 const editorRouter = require('./routes/editor');
 const editorApiRouter = require('./routes/editorApi');
+const reporterRouter = require('./routes/reporter');
+const reporterApiRouter = require('./routes/reporterApi');
+const weatherRouter = require('./routes/weather');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -42,13 +43,9 @@ const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
 app.use(async (req, res, next) => {
   try {
-    const token = req.cookies?.[COOKIE_NAME];
-    if (token) {
-      const decoded = jwt.verify(token, getJwtSecret());
-      const user = await User.findById(decoded.id).select('-passwordHash').lean();
-      if (user) {
-        req.user = user;
-      }
+    const user = await resolveUser(req);
+    if (user) {
+      req.user = user;
     }
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
@@ -71,6 +68,9 @@ app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/editor', requireRole('editor'), editorRouter);
 app.use('/api/editor', requireRole('editor'), editorApiRouter);
+app.use('/reporter', requireRole('reporter'), reporterRouter);
+app.use('/api/my-articles', requireRole('reporter'), reporterApiRouter);
+app.use('/api/weather', weatherRouter);
 app.use('/auth', authRoutes);
 
 app.use(function(req, res, next) {
@@ -87,8 +87,14 @@ app.use('/api', function(err, req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  res.locals.error = isDevelopment ? err : {};
+
+  if (!isDevelopment) {
+    console.error(err);
+  }
 
   res.status(err.status || 500);
   res.render('error', { title: 'Error' });

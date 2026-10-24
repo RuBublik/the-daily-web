@@ -13,12 +13,12 @@ const generateToken = (user) => {
   );
 };
 
-const sendTokenCookie = (res, token) => {
+const sendTokenCookie = (req, res, token) => {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 8 * 60 * 60 * 1000, 
+    secure: req.secure,
+    maxAge: 8 * 60 * 60 * 1000,
   });
 };
 
@@ -50,9 +50,9 @@ async function login(req, res, next) {
     }
 
     const token = generateToken(user);
-    sendTokenCookie(res, token);
-    // an editor lands in the editor area, everyone else on the home page
-    return res.redirect(user.role === 'editor' ? '/editor' : '/');
+    sendTokenCookie(req, res, token);
+    // each role lands in its own area
+    return res.redirect(user.role === 'editor' ? '/editor' : '/reporter');
   } catch (error) {
     next(error);
   }

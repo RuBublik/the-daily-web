@@ -1,5 +1,22 @@
-<%# slot for the weather widget, which is built in another part of the project %>
+<%# weather widget in the sidebar. public/js/weather.js fills it from GET /api/weather,
+    so a slow weather service never delays the page itself %>
 <section class="weather-widget" id="weather-widget">
   <h2>Weather</h2>
-  <p>Weather data will appear here.</p>
+  <p class="weather-status" id="weather-status" aria-live="polite">Loading the weather...</p>
+  <div class="weather-body" id="weather-body" hidden>
+    <p class="weather-city" id="weather-city"></p>
+    <p class="weather-now">
+      <span class="weather-icon" id="weather-icon" aria-hidden="true"></span>
+      <span class="weather-temp" id="weather-temp"></span>
+    </p>
+    <p class="weather-description" id="weather-description"></p>
+    <ul class="weather-details">
+      <li>Feels like <span id="weather-feels-like"></span></li>
+      <li>Humidity <span id="weather-humidity"></span></li>
+      <li>Wind <span id="weather-wind"></span></li>
+    </ul>
+    <p class="weather-updated" id="weather-updated"></p>
+  </div>
+  <noscript><p>Turn on JavaScript to see the weather.</p></noscript>
 </section>
+<script src="/js/weather.js" defer></script>

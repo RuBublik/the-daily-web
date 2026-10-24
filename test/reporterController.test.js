@@ -8,6 +8,7 @@ const {
   workingVersion,
   saveDraft,
   submitArticle,
+  deleteDraft,
   showEditor,
 } = require('../controllers/reporterController');
 
@@ -68,9 +69,11 @@ test('draft fields: an empty body is rejected', () => {
   assert.ok(parseDraftFields(undefined).error);
 });
 
-test('image must be empty or an http(s) address', () => {
+test('image must be empty, an http(s) address or a path on this site', () => {
   assert.ok(isValidImageUrl(''));
   assert.ok(isValidImageUrl('https://example.com/a.jpg'));
+  assert.ok(isValidImageUrl('/images/a.jpg'));
+  assert.ok(!isValidImageUrl('//evil.example.com/a.jpg'));
   assert.ok(!isValidImageUrl('javascript:alert(1)'));
   assert.ok(!isValidImageUrl('example.com/a.jpg'));
 });
@@ -84,7 +87,7 @@ test('editing a published article with no draft starts from the live version', (
 });
 
 test('an invalid id gets 400 before any database call', async () => {
-  for (const handler of [saveDraft, submitArticle]) {
+  for (const handler of [saveDraft, submitArticle, deleteDraft]) {
     const res = mockRes();
     await handler({ params: { id: 'not-an-id' }, body: { title: 'x' }, user: reporter }, res);
     assert.equal(res.statusCode, 400);

@@ -28,7 +28,7 @@
         <% } %>
         <label>Title <input name="title" value="<%= version.title %>" maxlength="200" required></label>
         <label>Summary <textarea name="summary" rows="2" maxlength="500" required><%= version.summary %></textarea></label>
-        <label>Image URL <input name="image" type="url" value="<%= version.image %>" maxlength="500" placeholder="https://..."></label>
+        <label>Image URL <input name="image" value="<%= version.image %>" maxlength="500" placeholder="https://... or /images/..."></label>
         <label>
           Category
           <select name="category" required>
@@ -45,6 +45,9 @@
       <p class="editor-message" id="reporter-message" aria-live="polite"></p>
       <div class="editor-actions">
         <button type="button" class="primary" id="submit-button">Submit for approval</button>
+        <% if (canDelete) { %>
+          <button type="button" class="danger" id="delete-button">Delete draft</button>
+        <% } %>
       </div>
     <% } else { %>
       <p class="edit-form-note">Waiting for the editor. You can edit again once the editor publishes it or returns it to you.</p>

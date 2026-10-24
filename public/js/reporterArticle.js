@@ -29,19 +29,25 @@
     message.className = 'editor-message error';
   }
 
-  function draftBody() {
-    return JSON.stringify(Object.fromEntries(new FormData(form)));
+  // browsers refuse a keepalive request with a body over 64 KB, so long articles are sent without it
+  const KEEPALIVE_LIMIT = 60000;
+
+  // the PATCH request with the whole form. keepalive lets it finish even if the tab is closed meanwhile
+  function patchDraft() {
+    const body = JSON.stringify(Object.fromEntries(new FormData(form)));
+    return fetch(apiUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: new Blob([body]).size < KEEPALIVE_LIMIT,
+    });
   }
 
   // one PATCH request, resolves to true when the server saved it. never throws
   async function sendDraft() {
     setSaveStatus('Saving...');
     try {
-      const response = await fetch(apiUrl, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: draftBody(),
-      });
+      const response = await patchDraft();
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
         const time = new Date(data.lastUpdated).toLocaleTimeString('en-US', { timeStyle: 'short' });
@@ -87,14 +93,12 @@
 
   // closing or leaving the page before the timer fired: send the last changes anyway.
   // keepalive lets the request finish after the page is gone
+  // not while a save is in flight: the two requests could reach the server in the wrong order,
+  // and the older text would overwrite the newer one. that save still finishes (keepalive), and
+  // beforeunload below already warned the reporter that something was not saved yet
   window.addEventListener('pagehide', () => {
-    if (unsaved) {
-      fetch(apiUrl, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: draftBody(),
-        keepalive: true,
-      });
+    if (unsaved && !saving) {
+      patchDraft().catch(() => {});
     }
   });
 
@@ -104,6 +108,32 @@
       event.preventDefault();
     }
   });
+
+  // only on a never-published draft; the server checks the same rule again
+  const deleteButton = document.getElementById('delete-button');
+  if (deleteButton) {
+    deleteButton.addEventListener('click', async () => {
+      if (!confirm('Delete this draft? This cannot be undone.')) {
+        return;
+      }
+      deleteButton.disabled = true;
+      // nothing left to save: no autosave and no "leave page?" warning for a deleted draft
+      clearTimeout(saveTimer);
+      unsaved = false;
+      try {
+        const response = await fetch(apiUrl, { method: 'DELETE' });
+        if (response.ok) {
+          location.href = '/reporter';
+          return;
+        }
+        const data = await response.json().catch(() => ({}));
+        showError(data.error || 'Could not delete the draft');
+      } catch (err) {
+        showError('Could not reach the server, check your connection');
+      }
+      deleteButton.disabled = false;
+    });
+  }
 
   submitButton.addEventListener('click', async () => {
     message.textContent = '';

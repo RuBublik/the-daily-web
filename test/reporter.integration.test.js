@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
-const { createArticle, saveDraft, submitArticle } = require('../controllers/reporterController');
+const { createArticle, saveDraft, submitArticle, deleteDraft } = require('../controllers/reporterController');
 const { approveArticle, returnArticle } = require('../controllers/editorController');
 
 // The reporter's write / submit flow against a real MongoDB.
@@ -19,6 +19,9 @@ function mockRes() {
     },
     json(payload) {
       this.body = payload;
+      return this;
+    },
+    end() {
       return this;
     },
   };
@@ -126,4 +129,59 @@ test('editing a published article never changes what readers see until approval'
   assert.equal(saved.title, 'New title');
   assert.equal(saved.draft, null);
   assert.equal(saved.publishHistory.length, 2);
+});
+
+test('a reporter can delete only their own never-published draft', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const draft = await Article.create({ author: reporter._id, authorName: TEST_AUTHOR, draft: {} });
+  const id = draft._id.toString();
+
+  // someone else's draft looks like a missing one
+  let res = await call(deleteDraft, { params: { id }, user: otherReporter });
+  assert.equal(res.statusCode, 404);
+
+  res = await call(deleteDraft, { params: { id }, user: reporter });
+  assert.equal(res.statusCode, 204);
+  assert.equal(await Article.exists({ _id: id }), null);
+
+  // a submitted article belongs to the editor's flow now
+  const pending = await Article.create({
+    author: reporter._id, authorName: TEST_AUTHOR, status: 'pending', draft: fullDraft,
+  });
+  res = await call(deleteDraft, { params: { id: pending._id.toString() }, user: reporter });
+  assert.equal(res.statusCode, 400);
+  assert.ok(await Article.exists({ _id: pending._id }));
+});
+
+test('submit refuses a draft that changed after it was checked', { skip }, async (t) => {
+  await mongoose.connect(process.env.MONGO_URI);
+  t.after(async () => {
+    await Article.deleteMany({ authorName: TEST_AUTHOR });
+    await mongoose.disconnect();
+  });
+
+  const article = await Article.create({ author: reporter._id, authorName: TEST_AUTHOR, draft: fullDraft });
+  const id = article._id.toString();
+
+  // a save from a second tab lands between the check and the status change
+  const realFindOne = Article.findOne;
+  t.mock.method(Article, 'findOne', function (...args) {
+    const query = realFindOne.apply(this, args);
+    return {
+      lean: async () => {
+        const found = await query.lean();
+        await Article.updateOne({ _id: id }, { $set: { 'draft.title': '', lastUpdated: new Date() } });
+        return found;
+      },
+    };
+  });
+
+  const res = await call(submitArticle, { params: { id }, user: reporter });
+  assert.equal(res.statusCode, 409);
+  assert.equal((await Article.findById(id).lean()).status, 'draft');
 });

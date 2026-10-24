@@ -121,9 +121,11 @@ function parseDraftFields(body) {
   return { fields };
 }
 
-// the image is optional, but when there is one it must be a web address
+// the image is optional. when there is one it is a web address (https://...) or a path on
+// this site (/images/x.jpg), the same values the editor area accepts.
+// "//" is refused: it would point to another site
 function isValidImageUrl(image) {
-  return !image || /^https?:\/\/\S+$/i.test(image);
+  return !image || /^https?:\/\/\S+$/i.test(image) || /^\/(?!\/)\S*$/.test(image);
 }
 
 function invalidId(res) {
@@ -206,6 +208,8 @@ async function showEditor(req, res, next) {
       version: workingVersion(article),
       editable: EDITABLE_STATUSES.includes(article.status),
       isPublic: Article.isPublic(article),
+      // same rule as deleteDraft; the server checks it again on delete
+      canDelete: article.status === 'draft' && !Article.isPublic(article),
       categories,
     });
   } catch (err) {
@@ -281,11 +285,13 @@ async function submitArticle(req, res) {
       return res.status(400).json({ error: `Fill in before submitting: ${missing.join(', ')}` });
     }
     if (!isValidImageUrl(article.draft.image)) {
-      return res.status(400).json({ error: 'The image must be a web address starting with http:// or https://' });
+      return res.status(400).json({ error: 'The image must be a web address (https://...) or a path on this site (/images/...)' });
     }
 
+    // lastUpdated changes on every save, so if a save (e.g. from a second tab) landed after we
+    // checked the draft above, nothing matches and the unchecked draft is not submitted
     const updated = await Article.findOneAndUpdate(
-      { _id: id, author: req.user._id, status: article.status },
+      { _id: id, author: req.user._id, status: article.status, lastUpdated: article.lastUpdated },
       { $set: { status: 'pending', lastUpdated: new Date() } },
       { returnDocument: 'after' }
     );
@@ -301,7 +307,40 @@ async function submitArticle(req, res) {
   }
 }
 
+// DELETE /api/my-articles/:id. a reporter may delete only their own article, and only while it is
+// a draft that was never published: anything the editor saw or readers read is the editor's to delete
+async function deleteDraft(req, res) {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    return invalidId(res);
+  }
+
+  try {
+    const deleted = await Article.findOneAndDelete({
+      _id: id,
+      author: req.user._id,
+      status: 'draft',
+      publishDate: null,
+    });
+    if (!deleted) {
+      // missing, someone else's, or not a never-published draft: tell which, without revealing others' articles
+      const own = await Article.exists({ _id: id, author: req.user._id });
+      if (!own) {
+        return articleNotFound(res);
+      }
+      return res.status(400).json({ error: 'Only a draft that was never published can be deleted' });
+    }
+
+    console.log(`Draft ${id} deleted by reporter ${req.user.username}`);
+    res.status(204).end();
+  } catch (err) {
+    console.error('Failed to delete draft:', err);
+    res.status(500).json({ error: 'Could not delete the draft' });
+  }
+}
+
 module.exports = {
+  deleteDraft,
   showDashboard,
   listArticles,
   createArticle,

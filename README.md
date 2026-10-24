@@ -66,7 +66,7 @@ the-daily-web/
 ├── setup.sh          # one-command development setup
 ├── .env.example      # template for .env (copy, then fill in)
 ├── config/           # db.js (Mongoose connection), categories.js (article categories)
-├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, commentController.js)
+├── controllers/      # request logic (e.g. homeController.js, articleController.js, editorController.js, reporterController.js, weatherController.js, commentController.js)
 ├── middleware/       # auth.js (requireAuth / requireRole), viewedArticles.js (viewed-articles cookie)
 ├── models/           # Mongoose schemas (e.g. Article.js, Comment.js, ViewStat.js, DailyViewStat.js)
 ├── routes/           # URL → controller mapping
@@ -74,7 +74,7 @@ the-daily-web/
 │   └── partials/     # shared header / footer / sidebar / weather / comments widget
 ├── public/           # static files served as-is
 │   ├── css/
-│   └── js/           # vanilla client JS (e.g. feed.js, article.js, comments.js)
+│   └── js/           # vanilla client JS (e.g. feed.js, article.js, comments.js, reporterArticle.js, weather.js)
 └── test/             # node:test test suites
 ```
 
@@ -111,7 +111,7 @@ An invalid parameter (unknown value, page out of range, a parameter sent as a li
 
 `GET /article/:id` is rendered fully on the server: title, author, category, publish date, main image and body. It shows only the approved version of the article (`content`), never an edit that is still waiting for approval. An invalid id, an unknown id, or an article that is not published gets the 404 page, so drafts and pending articles can't be reached by guessing the URL. The body is stored as plain text and printed paragraph by paragraph with HTML escaping.
 
-The page includes the comments section (see below) and the sidebar, which holds the slot for the weather widget.
+The page includes the comments section (see below) and the sidebar with the weather widget.
 
 - `GET /api/articles/:id`: the same published article as JSON. Returns `400` for an invalid id and `404` if the article is not found or not published.
 - `POST /api/articles/:id/view`: sent by `public/js/article.js` on every visit. It increases the article's view counter with MongoDB's atomic `$inc`, so many readers at once never lose a count, and adds the view to the article's hourly and daily statistics (see Impact Analytics). Returns `204`, or `404` if the article is not published.
@@ -145,6 +145,38 @@ Actions on the review page (`public/js/editorArticle.js`). Approve and return ap
 Every status change goes through `Article.canTransition(from, to, role)` (`models/Article.js`), the article workflow in one place. Approve and return only update an article that is still pending, so a double click acts once. Invalid ids, bad input and forbidden transitions get a `400` / `404` JSON error, never a crash. Approve, return and delete are logged on the server with the editor's username.
 
 To try it, log in at `/auth/login` as the editor `pepe` (created by `npm run seed`).
+
+### Reporter area
+
+Only for users with the `reporter` role. The pages and the API are mounted behind `requireRole('reporter')`, so an editor gets `403` and a guest `401`. Every query also includes `author: req.user._id`: a reporter only ever reaches their own articles, and another reporter's article answers `404`, as if it did not exist. After logging in, a reporter lands on `/reporter` and an editor on `/editor`.
+
+- `GET /reporter`: the reporter's own articles, newest change first, with a status filter (`all` by default). The first page is rendered on the server; the filter and "Load more" use Ajax (`public/js/reporter.js`, `GET /api/my-articles?status=&page=`).
+- **New article** (`POST /api/my-articles`): creates an empty article in `draft` and opens its edit page.
+- `GET /reporter/articles/:id`: the edit page, opened with the latest saved draft. A returned article shows the editor's note; a published article also shows the version readers see now.
+- **Delete draft** (`DELETE /api/my-articles/:id`): a reporter can delete their own article only while it is a `draft` that was never published. Anything submitted or published is the editor's to delete.
+
+**Autosave (work continuity).** There is no Save button. `public/js/reporterArticle.js` sends the whole form with `PATCH /api/my-articles/:id` one second after the reporter stops typing:
+- only one save is in flight at a time, so an older save never overwrites a newer one;
+- after a network error it retries on its own;
+- saves use `keepalive`, so a save already on its way finishes even if the tab is closed. When the page closes with unsaved changes and no save in flight, the last changes are sent; while a save is unfinished, the browser asks before leaving.
+
+The draft lives in the database, so a refresh, a closed browser or another computer opens the latest saved version. Autosave writes only to `draft`, never to the live fields, so readers never see work in progress. The first save on a published article opens a draft from its live version; the article stays `published` (still public) until the reporter submits it. A `pending` article is locked until the editor publishes or returns it.
+
+**Submit for approval** (`POST /api/my-articles/:id/submit`) moves the article from `draft`, `returned` or `published` to `pending`, through `Article.canTransition`, the same workflow rules the editor uses. The server checks that the title, summary, category and content are filled in, that the image (if any) is a web address (`https://...`) or a path on this site (`/images/...`), the same values the editor area accepts, and that a published article actually has changes to submit. If the draft was saved again (e.g. from a second tab) between that check and the status change, the submit answers `409` instead of sending an unchecked draft.
+
+Bad input gets a `400` JSON error. Creating, submitting and deleting articles is logged with the reporter's username.
+
+### Weather widget
+
+The sidebar on the home page and the article page shows the current weather (`views/partials/weather.ejs`). The page is rendered without waiting for it; `public/js/weather.js` then fills the widget from our own `GET /api/weather`.
+
+The data comes from [Open-Meteo](https://open-meteo.com), a free weather service that needs no account, API key or credit card, so there is no secret to keep out of the repository. The city is set in `.env` (`WEATHER_CITY`, `WEATHER_LAT`, `WEATHER_LON`, Tel Aviv by default).
+
+The server caches the answer (`controllers/weatherController.js`), so thousands of readers don't each call the external service:
+- the service is called at most once every 10 minutes, and requests that arrive during that call share it;
+- the call is cut off after 5 seconds;
+- after a failure the service isn't called again for a minute, and an answer up to 15 minutes old is still shown;
+- with nothing that recent, the route answers `503` and the widget shows a message. The server never crashes because of the weather service.
 
 ### Impact Analytics
 
@@ -208,4 +240,8 @@ Ensure the following keys are defined in your `.env` file:
 ```env
 JWT_SECRET=your_jwt_secret_key
 COOKIE_NAME=token
+# optional, the weather widget's city (Open-Meteo needs no API key)
+WEATHER_CITY=Tel Aviv
+WEATHER_LAT=32.08
+WEATHER_LON=34.78
 ```

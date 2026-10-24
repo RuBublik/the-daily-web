@@ -17,6 +17,9 @@ const commentsRouter = require('./routes/comments');
 const articlesRouter = require('./routes/articles');
 const editorRouter = require('./routes/editor');
 const editorApiRouter = require('./routes/editorApi');
+const reporterRouter = require('./routes/reporter');
+const reporterApiRouter = require('./routes/reporterApi');
+const weatherRouter = require('./routes/weather');
 
 connectDB().catch((err) => {
   console.error('Could not connect to MongoDB:', err.message);
@@ -65,6 +68,9 @@ app.use('/api/articles/:articleId/comments', commentsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/editor', requireRole('editor'), editorRouter);
 app.use('/api/editor', requireRole('editor'), editorApiRouter);
+app.use('/reporter', requireRole('reporter'), reporterRouter);
+app.use('/api/my-articles', requireRole('reporter'), reporterApiRouter);
+app.use('/api/weather', weatherRouter);
 app.use('/auth', authRoutes);
 
 app.use(function(req, res, next) {

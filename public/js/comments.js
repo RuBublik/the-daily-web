@@ -26,18 +26,23 @@
     return li;
   }
 
-  // loads one page of comments; page 1 replaces the list, later pages append to it
-  async function loadComments(articleId, listEl, loadMoreBtn, page) {
+  // loads one page of comments. without `before` it is the first page and replaces the list;
+  // with it (the id of the last comment loaded so far) the comments after that one are appended.
+  // an id and not a page number, so a comment posted meanwhile never shows a comment twice
+  async function loadComments(articleId, listEl, loadMoreBtn, before) {
     try {
-      const res = await fetch(`/api/articles/${articleId}/comments?page=${page}`);
+      const query = before ? `?before=${before}` : '';
+      const res = await fetch(`/api/articles/${articleId}/comments${query}`);
       if (!res.ok) throw new Error('Failed to load comments');
       const data = await res.json();
-      if (page === 1) {
+      if (!before) {
         listEl.innerHTML = '';
       }
       data.comments.forEach((comment) => listEl.appendChild(commentToListItem(comment)));
       loadMoreBtn.hidden = !data.hasMore;
-      loadMoreBtn.dataset.nextPage = page + 1;
+      if (data.comments.length > 0) {
+        loadMoreBtn.dataset.before = data.comments[data.comments.length - 1]._id;
+      }
     } catch (err) {
       console.error(err);
     }
@@ -52,10 +57,10 @@
     const textInput = section.querySelector('#comment-text');
     const loadMoreBtn = section.querySelector('#comments-load-more');
 
-    loadComments(articleId, listEl, loadMoreBtn, 1);
+    loadComments(articleId, listEl, loadMoreBtn);
 
     loadMoreBtn.addEventListener('click', () => {
-      loadComments(articleId, listEl, loadMoreBtn, Number(loadMoreBtn.dataset.nextPage));
+      loadComments(articleId, listEl, loadMoreBtn, loadMoreBtn.dataset.before);
     });
 
     form.addEventListener('submit', async (e) => {

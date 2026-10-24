@@ -11,9 +11,8 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_AUTHOR_NAME_LENGTH = 60;
 const MAX_TEXT_LENGTH = 1000;
 const MAX_SEARCH_LENGTH = 100;
-// same page size and cap as articleController, for the same reason
+// same page size as articleController
 const PAGE_SIZE = 20;
-const MAX_PAGE = 1000;
 
 function wouldExceedRateLimit(recentCount) {
   return recentCount >= RATE_LIMIT_COUNT;
@@ -24,10 +23,13 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// GET /api/articles/:articleId/comments?q=&page=
+// GET /api/articles/:articleId/comments?q=&before=
+// before is the id of the last comment the reader already has; the answer starts right after it.
+// a cursor and not a page number: a comment posted meanwhile goes to the top of the list, and with
+// skip() it would push the last comment of a page onto the next page, showing it twice
 async function listComments(req, res) {
   const { articleId } = req.params;
-  const { q, page } = req.query || {};
+  const { q, before } = req.query || {};
 
   if (!mongoose.isValidObjectId(articleId)) {
     return res.status(400).json({ error: 'Invalid article id' });
@@ -38,15 +40,8 @@ async function listComments(req, res) {
   if (q !== undefined && q.length > MAX_SEARCH_LENGTH) {
     return res.status(400).json({ error: `Search text must be ${MAX_SEARCH_LENGTH} characters or fewer` });
   }
-  let pageNum = 1;
-  if (page !== undefined) {
-    if (typeof page !== 'string' || !/^\d+$/.test(page)) {
-      return res.status(400).json({ error: 'page must be a positive whole number' });
-    }
-    pageNum = Number(page);
-    if (pageNum < 1 || pageNum > MAX_PAGE) {
-      return res.status(400).json({ error: `page must be between 1 and ${MAX_PAGE}` });
-    }
+  if (before !== undefined && (typeof before !== 'string' || !mongoose.isValidObjectId(before))) {
+    return res.status(400).json({ error: 'before must be a comment id' });
   }
 
   const filter = { article: articleId };
@@ -60,12 +55,23 @@ async function listComments(req, res) {
       return res.status(404).json({ error: 'Article not found' });
     }
 
+    if (before !== undefined) {
+      const last = await Comment.findOne({ _id: before, article: articleId }).select('createdAt').lean();
+      if (!last) {
+        return res.status(404).json({ error: 'Comment not found, reload the page' });
+      }
+      // what comes after it in the sort below: older, or just as old with a smaller _id
+      filter.$or = [
+        { createdAt: { $lt: last.createdAt } },
+        { createdAt: last.createdAt, _id: { $lt: last._id } },
+      ];
+    }
+
     // .lean() returns plain objects, bypassing the schema's toJSON transform below,
     // so guestId (the commenter's IP) has to be excluded here explicitly
     const comments = await Comment.find(filter)
       .select('-guestId')
       .sort({ createdAt: -1, _id: -1 })
-      .skip((pageNum - 1) * PAGE_SIZE)
       .limit(PAGE_SIZE + 1)
       .lean();
 
@@ -73,7 +79,7 @@ async function listComments(req, res) {
     if (hasMore) {
       comments.pop();
     }
-    res.json({ comments, page: pageNum, hasMore });
+    res.json({ comments, hasMore });
   } catch (err) {
     console.error('Failed to list comments:', err);
     res.status(500).json({ error: 'Could not load comments' });

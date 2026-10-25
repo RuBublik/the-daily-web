@@ -19,6 +19,7 @@ const MAX_LENGTHS = { title: 200, summary: 500, image: 500, content: 50000 };
 const EDITABLE_STATUSES = ['draft', 'returned', 'published'];
 
 // input validation. status defaults to all: the reporter sees every article they wrote
+// returns { filters } or { error }. used by showDashboard and listArticles
 function parseListQuery(query) {
   const { status, page } = query;
 
@@ -47,6 +48,8 @@ function parseListQuery(query) {
   return { filters };
 }
 
+// one page (20) of the logged-in reporter's own articles, newest change first, optionally by status.
+// returns { articles, hasMore }, each row shaped by toListRow so it shows the draft title if there is one
 async function findMyArticles(user, filters) {
   const mongoFilter = { author: user._id };
   if (filters.status !== 'all') {
@@ -70,11 +73,13 @@ async function findMyArticles(user, filters) {
 }
 
 // the reporter's own article, or null. someone else's article looks exactly like a missing one
+// used by showEditor, saveDraft and submitArticle, so every check is based on req.user from the server
 function findOwnArticle(id, user) {
   return Article.findOne({ _id: id, author: user._id }).lean();
 }
 
 // the approved version readers see now
+// copies the five top-level fields, with '' for empty ones (an article that was never approved)
 function liveVersion(article) {
   const live = {};
   for (const field of VERSION_FIELDS) {
@@ -84,12 +89,14 @@ function liveVersion(article) {
 }
 
 // what the reporter edits: the open draft, or a copy of the live version to start a new one
+// used to fill the edit page and as the base the autosave merges new fields into
 function workingVersion(article) {
   return article.draft || liveVersion(article);
 }
 
 // only known fields, and only strings, ever reach the database.
 // no format checks here: autosave sends half-typed text, which is checked on submit
+// returns { fields } or { error }. used by saveDraft
 function parseDraftFields(body) {
   const fields = {};
   for (const field of VERSION_FIELDS) {
@@ -124,19 +131,24 @@ function parseDraftFields(body) {
 // the image is optional. when there is one it is a web address (https://...) or a path on
 // this site (/images/x.jpg), the same values the editor area accepts.
 // "//" is refused: it would point to another site
+// checked in submitArticle before the draft goes to the editor
 function isValidImageUrl(image) {
   return !image || /^https?:\/\/\S+$/i.test(image) || /^\/(?!\/)\S*$/.test(image);
 }
 
+// sends 400 for an id that is not a valid MongoDB ObjectId, before any database query
 function invalidId(res) {
   return res.status(400).json({ error: 'Invalid article id' });
 }
 
+// sends 404 when the article does not exist or belongs to another reporter
 function articleNotFound(res) {
   return res.status(404).json({ error: 'Article not found' });
 }
 
 // GET /reporter, first page rendered on the server
+// the reporter's workspace (views/reporter/index.ejs): their own articles with a status filter.
+// bad query gives the 400 error page
 async function showDashboard(req, res, next) {
   const { error, filters } = parseListQuery(req.query);
   if (error) {
@@ -158,6 +170,7 @@ async function showDashboard(req, res, next) {
 }
 
 // GET /api/my-articles, for the status filter and "load more" without a page reload
+// bad query gives 400 with { error }, otherwise { articles, page, hasMore }
 async function listArticles(req, res) {
   const { error, filters } = parseListQuery(req.query);
   if (error) {
@@ -174,6 +187,8 @@ async function listArticles(req, res) {
 }
 
 // POST /api/my-articles, a new empty article in "draft". the editor page then autosaves into it
+// the author comes from req.user, never from the request body, so nobody can create in another's name.
+// answers 201 with the new id
 async function createArticle(req, res) {
   try {
     const article = await Article.create({
@@ -191,6 +206,8 @@ async function createArticle(req, res) {
 }
 
 // GET /reporter/articles/:id, the edit page, opened with the latest saved draft
+// renders views/reporter/article.ejs. only the reporter's own article, otherwise 404.
+// editable is false while the article is pending, so the form is read only until the editor decides
 async function showEditor(req, res, next) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -219,6 +236,7 @@ async function showEditor(req, res, next) {
 
 // PATCH /api/my-articles/:id, the autosave. writes only the draft, never the live version,
 // so readers keep seeing the last approved version. the status does not change
+// refused while pending (400). answers { lastUpdated } so the page can show when it was saved
 async function saveDraft(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -262,6 +280,8 @@ async function saveDraft(req, res) {
 }
 
 // POST /api/my-articles/:id/submit, sends the draft to the editor: draft / returned / published -> pending
+// Article.canTransition enforces the allowed moves. the draft must have every required field and a
+// valid image. answers { status: 'pending' }, or 409 if the article changed since it was read
 async function submitArticle(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -309,6 +329,7 @@ async function submitArticle(req, res) {
 
 // DELETE /api/my-articles/:id. a reporter may delete only their own article, and only while it is
 // a draft that was never published: anything the editor saw or readers read is the editor's to delete
+// answers 204 on success
 async function deleteDraft(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {

@@ -14,11 +14,16 @@ const MAX_SEARCH_LENGTH = 100;
 // same page size as articleController
 const PAGE_SIZE = 20;
 
+// rate limit rule: a guest may post at most RATE_LIMIT_COUNT (3) comments per RATE_LIMIT_WINDOW_MS (1 minute).
+// gets how many comments this guest already posted in the last minute and returns true when one more
+// would go over the limit. kept as its own small function so the rule can be unit tested without a database
 function wouldExceedRateLimit(recentCount) {
   return recentCount >= RATE_LIMIT_COUNT;
 }
 
 // same approach as articleController's title search
+// puts a backslash before every regex special character, so the reader's search text is matched
+// literally (searching for "a.b" or "(" must not be read as a regular expression)
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -27,6 +32,9 @@ function escapeRegex(text) {
 // before is the id of the last comment the reader already has; the answer starts right after it.
 // a cursor and not a page number: a comment posted meanwhile goes to the top of the list, and with
 // skip() it would push the last comment of a page onto the next page, showing it twice
+// validates the ids and the search text (400 on bad input), checks the article is published (404 if not),
+// then answers JSON { comments, hasMore }: up to PAGE_SIZE comments, newest first, without guestId.
+// it asks for one extra comment only to know whether a "Load more" button is needed
 async function listComments(req, res) {
   const { articleId } = req.params;
   const { q, before } = req.query || {};
@@ -87,6 +95,10 @@ async function listComments(req, res) {
 }
 
 // POST /api/articles/:articleId/comments
+// a guest posts a comment from the article page (public/js/article.js, via Ajax). validates the name and text,
+// checks the article is published, then counts this guest's comments from the last minute: a 4th one
+// is refused with 429 and a clear message. on success answers 201 with the new comment, so the page
+// can add it to the list right away without reloading the whole list
 async function addComment(req, res) {
   const { articleId } = req.params;
   const { authorName, text } = req.body || {};
@@ -141,6 +153,9 @@ async function addComment(req, res) {
 }
 
 // PATCH /api/articles/:articleId/comments/:commentId — editor only, for moderation
+// the route allows it only for the editor (requireRole('editor') in routes/comments.js).
+// validates the ids and the new text, replaces the text of a comment that belongs to this article,
+// and answers with the updated comment, or 404 when there is no such comment
 async function updateComment(req, res) {
   const { articleId, commentId } = req.params;
   const { text } = req.body || {};
@@ -172,6 +187,8 @@ async function updateComment(req, res) {
 }
 
 // DELETE /api/articles/:articleId/comments/:commentId — editor only, for moderation
+// the route allows it only for the editor (requireRole('editor') in routes/comments.js).
+// deletes the comment only if it belongs to this article; answers 204 (no body) or 404 when not found
 async function deleteComment(req, res) {
   const { articleId, commentId } = req.params;
 

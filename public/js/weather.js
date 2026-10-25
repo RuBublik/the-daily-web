@@ -1,6 +1,7 @@
 // Sidebar weather widget: loads the current weather from our own server (GET /api/weather),
 // which caches the external weather service. All text is set with textContent.
 
+// IIFE: stops right away on pages without the widget markup (views/partials/weather.ejs in the sidebar).
 (function () {
   const status = document.getElementById('weather-status');
   const body = document.getElementById('weather-body');
@@ -8,10 +9,14 @@
     return;
   }
 
+  // puts text into the element with this id, with textContent so data from the external service
+  // is never parsed as HTML
   function setText(id, text) {
     document.getElementById(id).textContent = text;
   }
 
+  // fills the widget from the weather object our server returns (city, icon, temperature, feels like,
+  // humidity, wind, time of the reading), then hides the loading text and shows the widget body
   function show(weather) {
     setText('weather-city', weather.city);
     setText('weather-icon', weather.icon);
@@ -26,6 +31,9 @@
     body.hidden = false;
   }
 
+  // GET /api/weather. our server calls the external weather service (Open-Meteo) and caches the answer
+  // for every reader, so the data may be a few minutes old (at most 15). on an error answer or no connection
+  // a short message replaces the loading text and the widget body stays hidden
   async function load() {
     try {
       const response = await fetch('/api/weather');

@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema({
 
 userSchema.set('toJSON', {
   virtuals: true,
+  // runs whenever a user is turned into JSON: removes _id and passwordHash, so the password hash
+  // never leaves the server (it is also select: false, so normal queries do not load it at all)
   transform: (_document, value) => {
     delete value._id;
     delete value.passwordHash;

@@ -33,6 +33,8 @@ server.on('listening', onListening);
  * Normalize a port into a number, string, or false.
  */
 
+// Turns the PORT value into something server.listen accepts: a number for a port,
+// the original string for a named pipe, or false for an invalid (negative) value.
 function normalizePort(val) {
   const port = parseInt(val, 10);
 
@@ -53,6 +55,8 @@ function normalizePort(val) {
  * Event listener for HTTP server "error" event.
  */
 
+// Called when the server fails to start listening. Permission denied (EACCES) or a port that is
+// already taken (EADDRINUSE) print a clear message and exit; any other error is thrown as is.
 function onError(error) {
   if (error.syscall !== 'listen') {
     throw error;
@@ -81,6 +85,8 @@ function onError(error) {
  * Event listener for HTTP server "listening" event.
  */
 
+// Called once the server is listening: prints the port (or pipe) it is bound to through the
+// debug logger (visible with DEBUG=the-daily-web:*).
 function onListening() {
   const addr = server.address();
   const bind = typeof addr === 'string'

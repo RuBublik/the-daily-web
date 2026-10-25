@@ -1,6 +1,7 @@
 // Reporter article list: the server already rendered the first page.
 // This script filters by status, loads more rows and creates a new article, all via Ajax.
 
+// IIFE: keeps the list state private. page is the last page loaded, used by "Load more".
 (function () {
   const form = document.getElementById('reporter-filters');
   const rows = document.getElementById('reporter-articles');
@@ -12,12 +13,14 @@
   let page = 1;
   let latestRequest = 0;
 
+  // wraps a DOM node in a new <td>
   function cell(child) {
     const td = document.createElement('td');
     td.appendChild(child);
     return td;
   }
 
+  // a <span> with a CSS class and text (set with textContent), used for the status pill and the update badge
   function span(className, text) {
     const element = document.createElement('span');
     element.className = className;
@@ -26,6 +29,7 @@
   }
 
   // same markup as views/partials/reporter-article-row.ejs. never innerHTML: titles must not inject HTML
+  // builds one table row (title linking to the edit page, category, status, last update)
   function createRow(article) {
     const row = document.createElement('tr');
 
@@ -55,6 +59,8 @@
   }
 
   // replace: true for a new filter, false to append the next page
+  // GET /api/my-articles: the server returns only the logged-in reporter's articles, by the session,
+  // never by anything the browser sends. only the newest request's answer is shown
   async function load(pageNumber, replace) {
     const requestId = ++latestRequest;
     const status = form.elements.status.value;
@@ -97,6 +103,8 @@
   loadMoreButton.addEventListener('click', () => load(page + 1, false));
 
   // the article is created on the server right away, so autosave has somewhere to write
+  // POST /api/my-articles creates an empty draft, then the browser opens its edit page.
+  // on error the server's message is shown and the button is enabled again
   newArticleButton.addEventListener('click', async () => {
     newArticleButton.disabled = true;
     message.textContent = '';

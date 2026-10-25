@@ -1,12 +1,16 @@
 // Comments widget: loads existing comments for an article and lets a guest post a new one,
 // entirely via Ajax (no full page reload).
 
+// IIFE: keeps the helpers private. The last line starts one widget per .comments section on the page.
 (function () {
+  // turns the ISO date string the API sends (createdAt) into a readable local date and time
   function formatDate(isoString) {
     const d = new Date(isoString);
     return d.toLocaleString();
   }
 
+  // builds one <li> for a comment (author, date, text) with createElement and textContent,
+  // never innerHTML, so a comment that contains HTML is shown as plain text and cannot run scripts (XSS)
   function commentToListItem(comment) {
     const li = document.createElement('li');
     li.className = 'comment';
@@ -29,6 +33,8 @@
   // loads one page of comments. without `before` it is the first page and replaces the list;
   // with it (the id of the last comment loaded so far) the comments after that one are appended.
   // an id and not a page number, so a comment posted meanwhile never shows a comment twice
+  // calls GET /api/articles/:id/comments and hides the "Load more" button when hasMore is false.
+  // on failure it only logs the error, so the rest of the article page keeps working
   async function loadComments(articleId, listEl, loadMoreBtn, before) {
     try {
       const query = before ? `?before=${before}` : '';
@@ -48,6 +54,8 @@
     }
   }
 
+  // wires one comments section: finds its elements, loads the first page of comments,
+  // and hooks up the "Load more" button and the new comment form. articleId comes from data-article-id
   function initComments(section) {
     const articleId = section.dataset.articleId;
     const listEl = section.querySelector('#comments-list');
@@ -63,6 +71,10 @@
       loadComments(articleId, listEl, loadMoreBtn, loadMoreBtn.dataset.before);
     });
 
+    // submitting the comment form: POST /api/articles/:id/comments with the name and text as JSON.
+    // on success the saved comment the server returns is put at the top of the list right away, without
+    // reloading the list. on error (400 for invalid input, 429 when the limit of 3 comments per minute
+    // is reached) the server's error message is shown in #comments-error, so nothing is dropped silently
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorEl.hidden = true;

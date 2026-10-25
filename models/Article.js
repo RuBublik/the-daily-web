@@ -3,16 +3,20 @@ const categories = require('../config/categories');
 
 // an article is public once it has been approved at least once (publishDate is set).
 // takes the article as a parameter, so it works on documents and on .lean() results alike
+// exposed as Article.isPublic, so controllers use it instead of repeating the check
 function isPublic(article) {
   return article.publishDate != null;
 }
 
 // an article has a draft while a version is being worked on or waits for approval
+// (draft is not null). exposed as Article.hasDraft
 function hasDraft(article) {
   return article.draft != null;
 }
 
 // mongoose calls a `required` function with the document as `this`
+// so title, summary and category may stay empty while the article was never approved, and become
+// required once it is public (the approved version must always be complete)
 function requiredOncePublic() {
   return isPublic(this);
 }
@@ -116,6 +120,9 @@ const TRANSITIONS = {
   },
 };
 
+// Article.canTransition(from, to, role): true when `role` may move an article from status `from` to `to`
+// according to TRANSITIONS. the reporter and editor controllers check it before every status change,
+// so the state machine is enforced on the server and any other transition is refused
 articleSchema.statics.canTransition = function (from, to, role) {
   const allowed = (TRANSITIONS[role] || {})[from] || [];
   return allowed.includes(to);

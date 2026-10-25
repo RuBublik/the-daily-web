@@ -2,6 +2,9 @@
 // so it counts toward the article's view statistics.
 // The route is POST /api/articles/:id/view.
 
+// IIFE: runs once when the script loads and keeps its variables out of the global scope.
+// Reads the article id from data-article-id on .article-page (set by the EJS view) and sends
+// a fire-and-forget POST. The page does not wait for the answer or show anything about it.
 (function () {
   const articleEl = document.querySelector('.article-page');
   if (!articleEl) {

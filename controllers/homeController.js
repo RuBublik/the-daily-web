@@ -3,6 +3,9 @@ const categories = require('../config/categories');
 const { parseFeedQuery, findPublishedArticles } = require('./articleController');
 const { getViewedIds } = require('../middleware/viewedArticles');
 
+// GET / (routes/index.js), the public home feed. parseFeedQuery checks the query string, and on bad
+// input the page falls back to the default feed instead of showing an error. renders views/index.ejs
+// with the first 20 published articles already in the HTML; more pages come from /api/articles via Ajax
 async function showHome(req, res, next) {
   let parsed = parseFeedQuery(req.query);
   // present default

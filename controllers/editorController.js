@@ -18,11 +18,14 @@ const VERSION_FIELDS = ['title', 'summary', 'image', 'category', 'content'];
 const REQUIRED_TO_PUBLISH = ['title', 'summary', 'category', 'content'];
 
 // remove special chars
+// escapes regex characters so the search text is matched literally inside the MongoDB $regex
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // input validation. status defaults to pending: what is waiting for the editor
+// checks status, q (title search) and page. returns { filters } or { error }.
+// used by showDashboard and listArticles
 function parseListQuery(query) {
   const { status, q, page } = query;
 
@@ -60,6 +63,7 @@ function parseListQuery(query) {
 }
 
 // the editor sees the version being worked on: the draft's title when there is one
+// turns an article into one row of the dashboard list. also used by the reporter dashboard
 function toListRow(article) {
   const draft = article.draft || {};
   return {
@@ -74,6 +78,8 @@ function toListRow(article) {
   };
 }
 
+// one page (20) of all articles for the editor, newest change first, filtered by status and
+// searched on both the live title and the draft title. returns { articles, hasMore }
 async function findArticles(filters) {
   const mongoFilter = {};
 
@@ -104,6 +110,7 @@ async function findArticles(filters) {
 }
 
 // GET /editor, first page rendered on the server
+// renders views/editor/index.ejs, by default the pending articles. bad query gives the 400 error page
 async function showDashboard(req, res, next) {
   const { error, filters } = parseListQuery(req.query);
   if (error) {
@@ -125,6 +132,7 @@ async function showDashboard(req, res, next) {
 }
 
 // GET /api/editor/articles, for filter, search and "load more" without a page reload
+// bad query gives 400 with { error }, otherwise { articles, page, hasMore }
 async function listArticles(req, res) {
   const { error, filters } = parseListQuery(req.query);
   if (error) {
@@ -141,6 +149,7 @@ async function listArticles(req, res) {
 }
 
 // GET /editor/articles/:id, the review page: pending version, and the live one for an update
+// renders views/editor/article.ejs for any article (the editor may see all). invalid id or missing gives 404
 async function showArticle(req, res, next) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -169,6 +178,8 @@ async function showArticle(req, res, next) {
 }
 
 // the draft fields a draft still needs before it can go public
+// returns the names of the missing REQUIRED_TO_PUBLISH fields, empty when it is ready.
+// used by approveArticle and editLive here, and by the reporter's submitArticle
 function missingToPublish(draft) {
   return REQUIRED_TO_PUBLISH.filter((field) => !draft || !String(draft[field] || '').trim());
 }
@@ -176,11 +187,14 @@ function missingToPublish(draft) {
 // status makes a double click (or two editors) approve only once; lastUpdated makes sure we're
 // not about to publish a stale draft snapshot over one that was edited in the meantime (editDraft
 // bumps lastUpdated on every save) — either mismatching means someone else moved first
+// the filter approveArticle passes to findOneAndUpdate
 function approvalFilter(id, article) {
   return { _id: id, status: 'pending', lastUpdated: article.lastUpdated };
 }
 
 // approving copies the draft over the live version, and records when it happened for the views chart
+// the update that does pending to published: draft fields become the top-level fields, draft and
+// editorNote are cleared, and now is pushed to publishHistory (the markers on the Impact chart)
 function buildApprovalUpdate(article, now) {
   const set = {
     status: 'published',
@@ -196,15 +210,19 @@ function buildApprovalUpdate(article, now) {
   return { $set: set, $push: { publishHistory: now } };
 }
 
+// sends 400 for an id that is not a valid MongoDB ObjectId, before any database query
 function invalidId(res) {
   return res.status(400).json({ error: 'Invalid article id' });
 }
 
+// sends 404 when no article has this id
 function articleNotFound(res) {
   return res.status(404).json({ error: 'Article not found' });
 }
 
 // POST /api/editor/articles/:id/approve
+// pending to published. checks the transition with Article.canTransition and that no required field
+// is missing, then applies buildApprovalUpdate in one atomic update. 409 if it changed meanwhile
 async function approveArticle(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -242,6 +260,8 @@ async function approveArticle(req, res) {
 }
 
 // POST /api/editor/articles/:id/return, back to the reporter with a note on what to fix
+// pending to returned. the note is required (up to 1000 chars) and is shown to the reporter,
+// who fixes the draft and submits again (returned to pending)
 async function returnArticle(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -284,6 +304,7 @@ async function returnArticle(req, res) {
 }
 
 // only known version fields, and only strings, ever reach the database
+// returns { fields } or { error }. used by editDraft and editLive; the schema validates the values
 function parseVersionEdit(body) {
   const fields = {};
   for (const field of VERSION_FIELDS) {
@@ -302,6 +323,8 @@ function parseVersionEdit(body) {
   return { fields };
 }
 
+// shared catch for editDraft and editLive: schema validation errors become 400 with the message,
+// anything else is logged and becomes 500, so a bad value never crashes the server
 function handleEditError(err, res) {
   // a value the schema rejects, e.g. an unknown category or a title that is too long
   if (err.name === 'ValidationError') {
@@ -313,6 +336,7 @@ function handleEditError(err, res) {
 
 // PATCH /api/editor/articles/:id/draft, the version being worked on or waiting for approval.
 // works in any status that has a draft, and does not change the status
+// only the changed draft fields are set, so the public version is untouched. answers { draft }
 async function editDraft(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -355,6 +379,8 @@ async function editDraft(req, res) {
 
 // PATCH /api/editor/articles/:id/live, the version readers see now.
 // the editor is the one who approves, so the change is published right away
+// only for an article that is already public, and it must keep all required fields.
+// pushes the time to publishHistory like an approval. answers { live }
 async function editLive(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -403,6 +429,7 @@ async function editLive(req, res) {
 }
 
 // DELETE /api/editor/articles/:id, with its comments and view statistics
+// the editor can delete any article in any status. answers 204, or 404 if it does not exist
 async function deleteArticle(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {

@@ -10,11 +10,15 @@ const MAX_QUERY_LENGTH = 100;
 const MAX_PAGE = 1000;
 
 // remove special chars
+// escapes regex characters so the search text is matched literally inside the MongoDB $regex
+// (a typed "." or "(" cannot change or break the query)
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // input validation
+// checks the home feed query string (q, category, viewed, sort, page) and fills in defaults.
+// returns { filters } or { error }. used by both the home page render and GET /api/articles
 function parseFeedQuery(query) {
   const { q, category, viewed, sort, page } = query;
 
@@ -65,6 +69,9 @@ function parseFeedQuery(query) {
   return { filters };
 }
 
+// runs the feed query for one page of 20 public articles (publishDate set), with search on title,
+// category and viewed / unviewed filters (viewedIds comes from the viewed cookie) and date or popular sort.
+// returns { articles, hasMore }. home page and API share it, so both always show the same results
 async function findPublishedArticles(filters, viewedIds) {
   // an article is public once it has been approved (publishDate is set)
   const mongoFilter = { publishDate: { $ne: null } };
@@ -104,6 +111,8 @@ async function findPublishedArticles(filters, viewedIds) {
 }
 
 // GET /api/articles
+// the Ajax endpoint for infinite scroll, search, filter and sort on the home page.
+// bad query gives 400 with { error }, otherwise { articles, page, hasMore }
 async function listArticles(req, res) {
   const { error, filters } = parseFeedQuery(req.query);
   if (error) {
@@ -120,6 +129,7 @@ async function listArticles(req, res) {
 }
 
 // GET /api/articles/:id
+// one published article as JSON, with its body. invalid id gives 400, missing or not public gives 404
 async function getArticle(req, res) {
   const { id } = req.params;
 
@@ -144,6 +154,8 @@ async function getArticle(req, res) {
 }
 
 // POST /api/articles/:id/view
+// sent by public/js/article.js on every article page load. adds 1 to viewCount and records the view
+// with ViewStat.record (hour and day buckets) for the Impact chart. answers 204, or 404 if the article is not public
 async function recordView(req, res) {
   const { id } = req.params;
 
@@ -171,6 +183,8 @@ async function recordView(req, res) {
 }
 
 // GET /article/:id, the public article page rendered on the server
+// renders views/article.ejs with only the approved fields (never draft or editorNote),
+// and adds the article to the guest's viewed cookie. invalid id or not public gives the 404 page
 async function showArticle(req, res, next) {
   const { id } = req.params;
 

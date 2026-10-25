@@ -2,6 +2,8 @@
 // month, the server picks by the range length), with a dashed line at every approval and a
 // before / after table. Data comes from GET /api/articles/:id/stats.
 
+// IIFE: holds the page state: articleId (the chosen article, may come from the server in data-selected-id),
+// range (the chosen time range), the current Chart.js chart, and counters that let only the newest request win.
 (function () {
   const page = document.getElementById('impact');
   const search = document.getElementById('impact-search');
@@ -20,6 +22,7 @@
   let latestRequest = 0;
   let latestSearch = 0;
 
+  // a time as HH:MM (24 hour clock). withDay also puts the date in front, e.g. "Mar 5 14:00"
   function formatHour(date, withDay) {
     const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     if (!withDay) {
@@ -29,6 +32,7 @@
   }
 
   // the x axis label of a point, by the chart's step
+  // month: "Mar 2026", day: "Mar 5", hour: "14:00" (with the date too when the range is longer than 24h)
   function pointLabel(time, data) {
     if (data.step === 'month') {
       return time.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -39,6 +43,7 @@
     return formatHour(time, data.range !== '24h');
   }
 
+  // the name of an approval: the first one is "Published", later ones "Update" and their number
   function updateLabel(update) {
     return update.first ? 'Published' : 'Update ' + update.number;
   }
@@ -49,6 +54,9 @@
   // Chart.js plugin of our own: a dashed vertical line and a label at every approval
   const approvalMarkers = {
     id: 'approvalMarkers',
+    // Chart.js calls this after it draws the line, on the same canvas. for every marker it finds the x pixel
+    // of its point, draws a red dashed line from top to bottom and writes the label next to it.
+    // ctx.save and ctx.restore keep the dash and color from affecting the rest of the chart
     afterDatasetsDraw(chartInstance, args, options) {
       const { ctx, chartArea, scales } = chartInstance;
       ctx.save();
@@ -81,6 +89,9 @@
     },
   };
 
+  // draws the views over time line chart with Chart.js: x is the time points, y the views in each point.
+  // every approval becomes a marker for our approvalMarkers plugin, so views before and after an update
+  // can be compared. the old chart is destroyed first, Chart.js cannot draw two charts on one canvas
   function drawChart(data) {
     const labels = data.points.map((point) => pointLabel(new Date(point.time), data));
     const counts = data.points.map((point) => point.count);
@@ -124,6 +135,7 @@
     });
   }
 
+  // a <td> with text (textContent) and an optional class (change-up / change-down color the percent)
   function cell(text, className) {
     const td = document.createElement('td');
     td.textContent = text;
@@ -133,6 +145,8 @@
     return td;
   }
 
+  // fills the before / after table: one row per approval with its time, its name, the average views per hour
+  // before and after it, and the change in percent. the table is hidden when the range has no approvals
   function fillTable(updates) {
     tableBody.replaceChildren();
     updates.forEach((update) => {
@@ -154,6 +168,9 @@
     table.hidden = updates.length === 0;
   }
 
+  // GET /api/articles/:id/stats?range=... for the chosen article and range, then draws the chart, fills the
+  // table and writes a summary line. only the newest request's answer is used. on an error answer the
+  // chart and table are hidden and the error is shown
   async function load() {
     if (!articleId) {
       return;
@@ -190,6 +207,8 @@
     }
   }
 
+  // clicking a search result: remembers the article, puts its title in the search box, closes the list
+  // and loads its statistics
   function selectArticle(article) {
     articleId = article._id;
     search.value = article.title;
@@ -198,6 +217,8 @@
   }
 
   // published articles matching the search, most viewed first (the public list API)
+  // each result is a button built with textContent, clicking it selects that article.
+  // runs when the search box gets focus, and 300 ms after the editor stops typing
   async function showResults() {
     const query = new URLSearchParams({ sort: 'popular' });
     if (search.value.trim()) {
@@ -247,6 +268,7 @@
   });
 
   rangeButtons.forEach((button) => {
+    // a range button: remembers the range, marks this button as pressed (aria-pressed) and reloads the chart
     button.addEventListener('click', () => {
       range = button.dataset.range;
       rangeButtons.forEach((other) => other.setAttribute('aria-pressed', String(other === button)));

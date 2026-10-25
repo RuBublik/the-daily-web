@@ -39,11 +39,14 @@ let cache = null; // { data, fetchedAt }
 let refreshing = null; // the call in flight, shared by every request that arrives meanwhile
 let lastFailureAt = 0;
 
+// turns an Open-Meteo WMO weather code into a description and an icon for the widget,
+// with a generic 'Unknown' fallback for a code that is not in the CONDITIONS table
 function describe(code) {
   return CONDITIONS.find((condition) => condition.codes.includes(code)) || { text: 'Unknown', icon: '🌡️' };
 }
 
 // only what the widget shows, so the client does not depend on the external service's format
+// throws when the answer is missing the current temperature, so a broken answer is never cached
 function toWidgetData(body, fetchedAt) {
   const current = body?.current;
   if (!current || typeof current.temperature_2m !== 'number') {
@@ -62,6 +65,9 @@ function toWidgetData(body, fetchedAt) {
   };
 }
 
+// calls the Open-Meteo forecast API once for the current weather of the configured city and
+// returns it in the widget's format. throws on a timeout, a non 2xx status or an unexpected answer;
+// getWeather catches that, so this function is only ever called from there
 async function fetchWeather() {
   const params = new URLSearchParams({
     latitude: place.latitude,
@@ -78,6 +84,9 @@ async function fetchWeather() {
 }
 
 // the weather to show, or null when there is none recent enough. never throws
+// caching: an answer younger than 10 minutes is returned as is. otherwise one shared call refreshes it
+// (requests that arrive meanwhile wait for the same call), and after a failure the service is not
+// called again for a minute. if refreshing fails, a cached answer up to 15 minutes old is still used
 async function getWeather() {
   if (cache && Date.now() - cache.fetchedAt < CACHE_MS) {
     return cache.data;
@@ -109,6 +118,8 @@ async function getWeather() {
 }
 
 // GET /api/weather
+// the sidebar weather widget (views/partials/weather.ejs) calls it by Ajax. answers the cached
+// weather as JSON, or 503 with an error message when no recent enough weather is available
 async function getCurrentWeather(req, res) {
   const weather = await getWeather();
   if (!weather) {

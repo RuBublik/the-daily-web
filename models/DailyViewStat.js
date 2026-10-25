@@ -26,6 +26,7 @@ const dailyViewStatSchema = new mongoose.Schema({
 dailyViewStatSchema.index({ article: 1, day: 1 }, { unique: true });
 
 // the day bucket a moment falls into
+// (midnight UTC of that day). exposed as DailyViewStat.startOfDay, used for recording and for the chart
 function startOfDay(date) {
   return new Date(Math.floor(date.getTime() / DAY_MS) * DAY_MS);
 }

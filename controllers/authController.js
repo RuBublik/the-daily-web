@@ -5,6 +5,8 @@ const { getJwtSecret } = require('../middleware/authMiddleware');
 
 const COOKIE_NAME = process.env.COOKIE_NAME || 'token';
 
+// creates a signed JWT with the user's id, username and role, valid for 8 hours.
+// it is signed with the server's secret, so the browser cannot forge it or change its role
 const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, username: user.username, role: user.role },
@@ -13,6 +15,8 @@ const generateToken = (user) => {
   );
 };
 
+// stores the token in an httpOnly cookie (page JS cannot read it), sameSite strict so other sites
+// cannot send it. the login lives in this signed cookie, not in server memory, so it survives a restart
 const sendTokenCookie = (req, res, token) => {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
@@ -22,11 +26,15 @@ const sendTokenCookie = (req, res, token) => {
   });
 };
 
+// POST /auth/login. finds the user by username and compares the password with the bcrypt hash.
+// on success sets the token cookie and redirects by role (editor to /editor, reporter to /reporter).
+// a wrong username and a wrong password get the same message, so usernames cannot be guessed
 async function login(req, res, next) {
   try {
     const username = String(req.body.username || '').trim().toLowerCase();
     const password = String(req.body.password || '');
 
+    // shows the login form again with status 401 and the error, keeping the typed username
     const renderError = (message) => {
       return res.status(401).render('auth/login', {
         title: 'Login - The Daily Web',
@@ -58,6 +66,8 @@ async function login(req, res, next) {
   }
 }
 
+// GET /auth/me, behind authenticateJwt. answers with the logged-in user (req.user) as JSON,
+// which the middleware already loaded from the token cookie
 async function currentUser(req, res, next) {
   try {
     return res.status(200).json(req.user);
@@ -66,6 +76,7 @@ async function currentUser(req, res, next) {
   }
 }
 
+// POST /auth/logout. deletes the token cookie, which ends the login, and goes back to the home page
 async function logout(req, res, next) {
   try {
     res.clearCookie(COOKIE_NAME);

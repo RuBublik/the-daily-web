@@ -1,6 +1,7 @@
 // Editor article list: the server already rendered the first page.
 // This script re-queries on filter or search and loads more rows, all via Ajax (no full page reload).
 
+// IIFE: keeps the list state private. page is the last page loaded, used by "Load more".
 (function () {
   const form = document.getElementById('editor-filters');
   const rows = document.getElementById('editor-articles');
@@ -12,6 +13,7 @@
   let searchTimer = null;
 
   // the form values as a query string, without empty ones
+  // (q for the title search, status) plus the page number, for GET /api/editor/articles
   function buildQuery(pageNumber) {
     const params = new URLSearchParams();
     new FormData(form).forEach((value, name) => {
@@ -23,12 +25,14 @@
     return params;
   }
 
+  // wraps a DOM node in a new <td>
   function cell(child) {
     const td = document.createElement('td');
     td.appendChild(child);
     return td;
   }
 
+  // a <span> with a CSS class and text (set with textContent), used for the status pill and the update badge
   function span(className, text) {
     const element = document.createElement('span');
     element.className = className;
@@ -37,6 +41,7 @@
   }
 
   // same markup as views/partials/editor-article-row.ejs. never innerHTML: titles must not inject HTML
+  // builds one table row (title linking to the review page, author, category, status, last update)
   function createRow(article) {
     const row = document.createElement('tr');
 
@@ -67,6 +72,8 @@
   }
 
   // replace: true for a new filter or search, false to append the next page
+  // GET /api/editor/articles (the server checks that the user is an editor). only the newest request's
+  // answer is shown, and "Load more" is hidden when the server says hasMore is false
   async function load(pageNumber, replace) {
     const requestId = ++latestRequest;
     const query = buildQuery(pageNumber);

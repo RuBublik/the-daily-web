@@ -59,20 +59,25 @@ const WORDS = ('lorem ipsum dolor sit amet consectetur adipiscing elit sed do ei
   + 'nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit '
   + 'anim id est laborum').split(' ');
 
+// a random whole number from min to max (both included), using the seeded generator
 function between(random, min, max) {
   return min + Math.floor(random() * (max - min + 1));
 }
 
+// one placeholder sentence: 8 to 16 random words, first letter capitalized, ending with a period
 function sentence(random) {
   const words = Array.from({ length: between(random, 8, 16) }, () => WORDS[between(random, 0, WORDS.length - 1)]);
   const text = words.join(' ');
   return text[0].toUpperCase() + text.slice(1) + '.';
 }
 
+// a paragraph made of the given number of sentences
 function paragraph(random, sentences) {
   return Array.from({ length: sentences }, () => sentence(random)).join(' ');
 }
 
+// the text fields of one article (title, summary, image, category, content). The image is a fixed
+// picsum.photos picture per article number, so it is the same on every run
 function articleText(random, number, category) {
   return {
     title: `Sample article ${number}`,
@@ -124,6 +129,8 @@ function generateViews(random, article, now) {
   return { buckets, dailyBuckets, popularity };
 }
 
+// 0 to 10 guest comments for a published article, more for popular ones, each dated
+// somewhere between the publish date and now
 function generateComments(random, article, now, popularity) {
   const count = Math.min(10, Math.floor(random() * (2 + popularity / 3)));
   const published = article.publishDate.getTime();
@@ -208,6 +215,8 @@ function hostsOf(uri) {
   return authority.split('@').pop().split(',').map((host) => host.replace(/:\d+$/, ''));
 }
 
+// true only if every host in the URI is this computer; used to refuse wiping a remote
+// database unless --force is given
 function isLocal(uri) {
   return hostsOf(uri).every((host) => ['localhost', '127.0.0.1', '[::1]'].includes(host));
 }
@@ -226,11 +235,14 @@ async function insertInBatches(Model, docs, label) {
 
 const MODELS = [User, Article, Comment, ViewStat, DailyViewStat];
 
+// how many documents each collection holds right now, as one line for the error message
 async function countAll() {
   const counts = await Promise.all(MODELS.map((Model) => Model.estimatedDocumentCount()));
   return MODELS.map((Model, i) => `${counts[i]} ${Model.collection.collectionName}`).join(', ');
 }
 
+// the whole seed: checks the URI and password, connects, wipes every collection, rebuilds the
+// indexes, inserts the users and then the generated data, and prints a summary
 async function main() {
   const args = process.argv.slice(2);
   const uri = process.env.MONGO_URI;
@@ -290,6 +302,8 @@ async function main() {
     + ` - password: ${local ? DEFAULT_LOCAL_PASSWORD : 'SEED_PASSWORD from .env'}`);
 }
 
+// run main only when the file is started directly (npm run seed), not when a test requires it.
+// Any error is printed and sets a failing exit code; the connection is always closed at the end
 if (require.main === module) {
   main()
     .catch((err) => {

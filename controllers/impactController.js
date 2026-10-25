@@ -19,6 +19,8 @@ const DEFAULT_RANGE = '7d';
 // before / after an approval are compared over this many hours each
 const COMPARE_HOURS = 24;
 
+// checks the ?range= query value of the stats API. returns { range } (the default 7d when it is missing)
+// or { error } when it is not one of the RANGES keys, so getStats can answer 400
 function parseRange(range) {
   if (range === undefined) {
     return { range: DEFAULT_RANGE };
@@ -30,6 +32,7 @@ function parseRange(range) {
 }
 
 // the chart's step for a range from `from` to `to`
+// returns 'hour', 'day' or 'month', picked so the chart never has more than about 750 points
 function chooseStep(from, to) {
   const span = to.getTime() - from.getTime();
   if (span <= MAX_HOURLY_SPAN) {
@@ -49,15 +52,18 @@ function fillSeries(buckets, field, from, to, stepMs) {
   return series;
 }
 
+// turns hourly ViewStat buckets into one point per hour from `from` to `to` (missing hours are 0)
 function hourlySeries(buckets, from, to) {
   return fillSeries(buckets, 'hour', from, to, HOUR_MS);
 }
 
+// turns DailyViewStat buckets into one point per day from `from` to `to` (missing days are 0)
 function dailySeries(buckets, from, to) {
   return fillSeries(buckets, 'day', from, to, DAY_MS);
 }
 
 // the daily points added up per calendar month (UTC); a point's time is the 1st of its month
+// used for ranges longer than 2 years, so the chart stays small. `daily` must be sorted by time
 function monthlySeries(daily) {
   const series = [];
   daily.forEach((point) => {
@@ -72,6 +78,7 @@ function monthlySeries(daily) {
   return series;
 }
 
+// average views per point of a series, rounded to one decimal place; 0 for an empty series
 function average(series) {
   if (series.length === 0) {
     return 0;
@@ -83,6 +90,8 @@ function average(series) {
 // for every approval: average views per hour in the 24 hours before and after it, and the change.
 // the hour the approval happened in counts as "after". `hourly` must cover all the hours needed.
 // `firstPublish` tells which approval was the first publish (it may be outside `approvals`)
+// returns one object per approval: { at, first, before, after, change (percent), soFar }, which the
+// Impact page shows under the chart next to each update marker
 function summarizeUpdates(approvals, hourly, now, firstPublish) {
   if (approvals.length === 0) {
     return [];
@@ -115,11 +124,13 @@ function summarizeUpdates(approvals, hourly, now, firstPublish) {
 // the same comparison for approvals older than the hourly retention, from the daily totals:
 // the whole day before the approval's day against the whole day after it, divided by 24 so it is
 // still views per hour. `daily` must cover those days
+// returns objects in the same shape as summarizeUpdates, with daily: true so the page can say so
 function summarizeDailyUpdates(approvals, daily, firstPublish) {
   if (approvals.length === 0) {
     return [];
   }
   const counts = new Map(daily.map((point) => [point.time.getTime(), point.count]));
+  // views of one day (by its start time) divided by 24, rounded to one decimal place
   const perHour = (day) => Math.round(((counts.get(day) || 0) / 24) * 10) / 10;
   const firstPublishDay = DailyViewStat.startOfDay(firstPublish).getTime();
 
@@ -138,6 +149,10 @@ function summarizeDailyUpdates(approvals, daily, firstPublish) {
 }
 
 // GET /api/articles/:id/stats?range=24h|7d|30d|all (editor only)
+// the Impact page calls it by Ajax (route in routes/articles.js, behind requireRole('editor')).
+// validates the id and range, loads the article's approvals (publishHistory), reads the view buckets
+// for the range and answers JSON { article, range, step, totalViews, points, updates }:
+// the chart points plus a before / after summary for every approval marker in the range
 async function getStats(req, res) {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
@@ -171,6 +186,7 @@ async function getStats(req, res) {
     // approvals whose 24 hours before are still in the hourly buckets get the exact comparison,
     // older ones the daily one. (in an hourly range every approval is recent)
     const hourlyKeptFrom = nowHour.getTime() - (ViewStat.RETENTION_DAYS - 1) * DAY_MS;
+    // true when the 24 hours before this approval are still kept in the hourly buckets
     const isRecent = (at) => ViewStat.startOfHour(at).getTime() - COMPARE_HOURS * HOUR_MS >= hourlyKeptFrom;
     const recent = approvals.filter(isRecent);
     const old = approvals.filter((at) => !isRecent(at));
@@ -238,6 +254,9 @@ async function getStats(req, res) {
 }
 
 // GET /impact, the Impact Analytics page. ?article=<id> opens it with that article selected
+// the route is behind requireRole('editor') in app.js. renders views/impact.ejs (server side) with the
+// range buttons; the chart data itself is loaded afterwards by Ajax from getStats.
+// an unknown or unpublished ?article= id is ignored, and the page opens with nothing selected
 async function showImpact(req, res, next) {
   try {
     const { article: id } = req.query;

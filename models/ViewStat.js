@@ -32,12 +32,14 @@ viewStatSchema.index({ article: 1, hour: 1 }, { unique: true });
 viewStatSchema.index({ hour: 1 }, { expireAfterSeconds: RETENTION_DAYS * 24 * 60 * 60 });
 
 // the hour bucket a moment falls into
+// (the time rounded down to the full hour, UTC). exposed as ViewStat.startOfHour
 function startOfHour(date) {
   return new Date(Math.floor(date.getTime() / HOUR_MS) * HOUR_MS);
 }
 
 // adds one to the bucket `filter` points at. $inc is atomic, so concurrent views never lose a count,
 // and upsert creates the bucket on its first view
+// used by record() for both the hourly (ViewStat) and the daily (DailyViewStat) bucket
 async function upsertCount(Model, filter) {
   const update = { $inc: { count: 1 } };
   try {
@@ -53,6 +55,8 @@ async function upsertCount(Model, filter) {
 }
 
 // counts one view, in its hour bucket and in its day bucket (independent, so both at once)
+// exposed as ViewStat.record and called by articleController.recordView (POST /api/articles/:id/view)
+// on every article page load. `this` is the ViewStat model because it is called as a static
 async function record(articleId, at = new Date()) {
   await Promise.all([
     upsertCount(this, { article: articleId, hour: startOfHour(at) }),

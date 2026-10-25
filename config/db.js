@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// connects Mongoose to MongoDB using MONGO_URI from .env; called once from app.js at startup.
+// throws when MONGO_URI is missing or the server cannot be reached within 5 seconds, so app.js can
+// log the problem. after connecting it logs connection errors and disconnects (Mongoose reconnects itself)
 async function connectDB() {
   const uri = process.env.MONGO_URI;
 
